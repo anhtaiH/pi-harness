@@ -65,6 +65,7 @@ function planSidecarCopy() {
     "harness.config.json",
     "package.json",
     "package-lock.json",
+    "pnpm-lock.yaml",
     "package-approvals.json",
     "package-provenance.lock.json",
     "tsconfig.json",

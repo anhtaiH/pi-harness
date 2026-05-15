@@ -16,13 +16,17 @@ const pkg = JSON.parse(readFileSync(join(tmp, "package.json"), "utf8"));
 const scripts = pkg.scripts || {};
 const sidecar = join(tmp, ".pi-harness");
 const copiedHarness = existsSync(join(sidecar, "scripts", "setup-wizard.mjs")) && existsSync(join(sidecar, "bin", "pi-harness"));
+const copiedPnpmLock = existsSync(join(sidecar, "pnpm-lock.yaml"));
 const setupPlanHasCapabilities = (setupParsed?.actions || []).some((action) => action.id === "capability-guidance" && action.capabilities?.length === 3);
+const installAction = (setupParsed?.actions || []).find((action) => action.id === "install-dependencies");
 
 const ok = plan.status === 0
   && apply.status === 0
   && plan.parsed?.ok === true
   && apply.parsed?.ok === true
   && copiedHarness
+  && copiedPnpmLock
+  && installAction?.packageManager?.name === "pnpm"
   && scripts["harness:setup"] === "node .pi-harness/scripts/setup-wizard.mjs"
   && scripts.pi === "./.pi-harness/bin/pi-harness"
   && setup.status === 0
@@ -36,6 +40,8 @@ console.log(JSON.stringify({
   applyStatus: apply.status,
   setupStatus: setup.status,
   copiedHarness,
+  copiedPnpmLock,
+  installAction: installAction ? { command: installAction.command, packageManager: installAction.packageManager } : null,
   scriptNames: Object.keys(scripts).sort(),
   setupPlanHasCapabilities,
   findings: [

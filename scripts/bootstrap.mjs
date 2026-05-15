@@ -2,6 +2,7 @@ import { constants, existsSync, mkdirSync, readFileSync, writeFileSync, accessSy
 import { dirname, join } from "node:path";
 import { spawnSync } from "node:child_process";
 import { hasFlag, pathFromRoot } from "./lib/harness-state.mjs";
+import { installCommandText, selectPackageManager } from "./lib/package-manager.mjs";
 
 const args = process.argv.slice(2);
 const json = hasFlag(args, "--json");
@@ -41,7 +42,16 @@ step("node", "Node.js runtime", () => {
 });
 
 step("npm", "npm CLI", () => commandVersion("npm", ["--version"]));
-step("package-lock", "package lock", () => exists("package-lock.json", "package-lock.json present"));
+step("package-manager", "package manager", () => {
+  const selection = selectPackageManager();
+  if (!selection.available) throw new Error("no supported package manager found");
+  if (selection.fallback) warnings.push("pnpm is preferred but unavailable here; falling back to npm.");
+  return `${selection.name} (${selection.reason})`;
+});
+step("package-lock", "package lock", () => {
+  if (existsSync(pathFromRoot("pnpm-lock.yaml"))) return "pnpm-lock.yaml present";
+  return exists("package-lock.json", "package-lock.json present");
+});
 step("package-json", "package scripts", () => {
   const pkg = JSON.parse(readFileSync(pathFromRoot("package.json"), "utf8"));
   for (const script of ["harness:bootstrap", "harness:setup", "harness:ready", "gates", "package:harness"]) {
@@ -68,14 +78,16 @@ step("pi-cli", "Pi CLI", () => {
 }, { soft: true });
 
 step("node-modules", "node dependencies", () => {
+  const selection = selectPackageManager();
+  const commandText = installCommandText(selection);
   if (existsSync(pathFromRoot("node_modules"))) return "node_modules present";
   if (!install) {
-    warnings.push("node_modules is missing; run `npm ci` or `npm run harness:bootstrap -- --install` when installs are approved.");
+    warnings.push("node_modules is missing; run `" + commandText + "` or `npm run harness:bootstrap -- --install` when installs are approved.");
     return "not installed";
   }
-  const result = run("npm", ["ci"], { timeout: 10 * 60_000 });
-  if (result.status !== 0) throw new Error(result.stderr || result.stdout || `npm ci exited ${result.status}`);
-  return "npm ci completed";
+  const result = run(selection.command, selection.installArgs, { timeout: 10 * 60_000 });
+  if (result.status !== 0) throw new Error(result.stderr || result.stdout || `${commandText} exited ${result.status}`);
+  return commandText + " completed";
 }, { soft: !install });
 
 step("offline-vendor", "offline vendor manifest", () => {
@@ -173,7 +185,7 @@ function summarize(parsed) {
 
 function computeNextSteps() {
   const steps = [];
-  if (!existsSync(pathFromRoot("node_modules"))) steps.push("Install dependencies when approved: `npm ci` or `npm run harness:bootstrap -- --install`.");
+  if (!existsSync(pathFromRoot("node_modules"))) steps.push("Install dependencies when approved: `" + installCommandText(selectPackageManager()) + "` or `npm run harness:bootstrap -- --install`.");
   if (warnings.some((warning) => warning.includes("Repo-local Pi CLI"))) steps.push("For full portability, add a reviewed repo-local Pi CLI or vendor artifact.");
   else if (warnings.some((warning) => warning.includes("Pi CLI"))) steps.push("Install or vendor the Pi CLI before live sessions.");
   if (!runGates) steps.push("Run full readiness before rollout: `npm run harness:ready -- --run-gates`.");

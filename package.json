@@ -2,6 +2,7 @@
   "name": "pi-harness",
   "version": "0.1.0",
   "type": "module",
+  "packageManager": "pnpm@11.1.2",
   "bin": {
     "pi-harness-adopt": "bin/pi-harness-adopt.mjs"
   },

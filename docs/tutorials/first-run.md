@@ -28,7 +28,7 @@ This adds the sidecar and minimal project scripts. It should not overwrite unrel
 npm run harness:setup -- --apply --install
 ```
 
-Setup installs the sidecar lockfile when asked, bootstraps local state, checks harness health, and shows optional model/team/research batteries.
+Setup installs the sidecar lockfile when asked, preferring pnpm via Corepack and falling back to npm if needed. It bootstraps local state, checks harness health, and shows optional model/team/research batteries.
 
 ## 4. Start Pi
 

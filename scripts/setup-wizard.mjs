@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { spawnSync } from "node:child_process";
 import { hasFlag, nowIso, pathFromRoot, timestampId } from "./lib/harness-state.mjs";
+import { installCommandText, selectPackageManager } from "./lib/package-manager.mjs";
 
 const args = process.argv.slice(2);
 const json = hasFlag(args, "--json");
@@ -53,13 +54,15 @@ function inspectRepo() {
     node: process.versions.node,
     packageJson: existsSync(pathFromRoot("package.json")),
     packageLock: existsSync(pathFromRoot("package-lock.json")),
+    pnpmLock: existsSync(pathFromRoot("pnpm-lock.yaml")),
+    packageManager: selectPackageManager(),
     nodeModules: existsSync(pathFromRoot("node_modules")),
     localPi: existsSync(pathFromRoot("node_modules", ".bin", "pi")),
   };
   const localFindings = [];
   if (nodeMajor < 22) localFindings.push("Node 22+ required, found " + process.versions.node);
   if (!details.packageJson) localFindings.push("missing package.json");
-  if (!details.packageLock) localFindings.push("missing package-lock.json");
+  if (!details.packageLock && !details.pnpmLock) localFindings.push("missing package lockfile");
   findings.push(...localFindings);
   actions.push({
     id: "inspect-repo",
@@ -73,22 +76,28 @@ function inspectRepo() {
 }
 
 function installDeps() {
+  const selection = selectPackageManager();
+  const commandText = installCommandText(selection);
   const nodeModules = existsSync(pathFromRoot("node_modules"));
+  const why = selection.name === "pnpm"
+    ? "Use the faster locked pnpm path through Corepack while keeping the command visible."
+    : "Use npm as the zero-prereq fallback when pnpm/Corepack is unavailable.";
+  if (selection.fallback) warnings.push("pnpm is preferred but unavailable here; falling back to npm for this run.");
   if (nodeModules && !install) {
-    actions.push({ id: "install-dependencies", title: "Install dependencies", status: "skipped", applied: false, command: "npm ci", why: "Dependencies are already present." });
+    actions.push({ id: "install-dependencies", title: "Install dependencies", status: "skipped", applied: false, command: commandText, packageManager: selection, why: "Dependencies are already present." });
     return;
   }
   if (!install) {
-    warnings.push("Dependencies are missing; rerun with `--install` if you want the wizard to run `npm ci`.");
-    actions.push({ id: "install-dependencies", title: "Install dependencies", status: apply ? "blocked" : "planned", applied: false, command: "npm ci", why: "Install is explicit because it changes the checkout." });
-    if (apply) findings.push("node_modules missing; pass --install to run npm ci");
+    warnings.push("Dependencies are missing; rerun with `--install` if you want the wizard to run `" + commandText + "`.");
+    actions.push({ id: "install-dependencies", title: "Install dependencies", status: apply ? "blocked" : "planned", applied: false, command: commandText, packageManager: selection, why: "Install is explicit because it changes the checkout." });
+    if (apply) findings.push("node_modules missing; pass --install to run " + commandText);
     return;
   }
   if (!apply) {
-    actions.push({ id: "install-dependencies", title: "Install dependencies", status: "planned", applied: false, command: "npm ci", why: "With --apply, install the locked dependency graph." });
+    actions.push({ id: "install-dependencies", title: "Install dependencies", status: "planned", applied: false, command: commandText, packageManager: selection, why });
     return;
   }
-  capture({ id: "install-dependencies", title: "Install dependencies", command: "npm ci", why: "Let the agent perform exact setup steps instead of asking a human to copy them.", result: run("npm", ["ci"], 10 * 60_000) });
+  capture({ id: "install-dependencies", title: "Install dependencies", command: commandText, why, result: run(selection.command, selection.installArgs, 10 * 60_000), packageManager: selection });
 }
 
 function bootstrapState() {
@@ -150,11 +159,11 @@ function saveResult(value) {
   writeFileSync(runPath, JSON.stringify(saved, null, 2) + "\n", "utf8");
 }
 
-function capture({ id, title, command, why, result }) {
+function capture({ id, title, command, why, result, packageManager = undefined }) {
   const parsed = parseJson(result.stdout);
   const ok = result.status === 0 && parsed?.ok !== false;
   const reason = ok ? "pass" : parsed?.findings?.join("; ") || result.stderr.trim() || result.stdout.trim().slice(0, 500) || "exit " + result.status;
-  actions.push({ id, title, status: ok ? "ok" : "failed", applied: true, command, why, result: { status: result.status, ok, reason, summary: summarize(parsed) } });
+  actions.push({ id, title, status: ok ? "ok" : "failed", applied: true, command, why, packageManager, result: { status: result.status, ok, reason, summary: summarize(parsed) } });
   if (!ok) findings.push(id + ": " + reason);
 }
 

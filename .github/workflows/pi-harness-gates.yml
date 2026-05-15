@@ -13,8 +13,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: npm
-      - run: npm ci
+          cache: pnpm
+      - run: corepack enable
+      - run: corepack pnpm install --frozen-lockfile
       - run: npm run harness:bootstrap
       - run: npm run gates
       - run: npm run smoke:live -- all --dry-run --json

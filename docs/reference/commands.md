@@ -11,6 +11,8 @@ npm run harness:setup -- --apply --install
 npm run pi
 ```
 
+The setup command prefers pnpm via Corepack for the sidecar install and falls back to npm when pnpm is unavailable.
+
 ## Setup and readiness
 
 ```bash

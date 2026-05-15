@@ -555,6 +555,19 @@
     ]
   },
   {
+    "id": "package-manager-prefers-pnpm-with-npm-fallback",
+    "command": [
+      "node",
+      "scripts/eval-package-manager.mjs"
+    ],
+    "expectExit": 0,
+    "stdoutIncludes": [
+      "\"ok\": true",
+      "corepack pnpm install --frozen-lockfile",
+      "workflowUsesPnpm"
+    ]
+  },
+  {
     "id": "pi-wrappers-prefer-repo-local-binary",
     "command": [
       "node",

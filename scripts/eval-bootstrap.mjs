@@ -20,6 +20,7 @@ const stepIds = new Set((parsed?.steps || []).map((step) => step.id));
 const ok = result.status === 0
   && parsed?.ok === true
   && stepIds.has("state-dirs")
+  && stepIds.has("package-manager")
   && stepIds.has("package-manifest")
   && stepIds.has("harness-check")
   && Array.isArray(parsed.nextSteps)

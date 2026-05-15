@@ -25,7 +25,7 @@ npm run harness:setup
 npm run pi
 ```
 
-The setup wizard installs the sidecar lockfile when asked, bootstraps local state, shows optional model/team/research batteries, runs checks, writes `.pi-harness/state/setup/latest.json`, and generates handoff prompts under `.pi-harness/state/setup/` so you can ask Pi to continue with the exact handoff visible.
+The setup wizard installs the sidecar lockfile when asked, preferring fast pnpm via Corepack and falling back to npm when needed. It bootstraps local state, shows optional model/team/research batteries, runs checks, writes `.pi-harness/state/setup/latest.json`, and generates handoff prompts under `.pi-harness/state/setup/` so you can ask Pi to continue with the exact handoff visible.
 
 Inside Pi, hand over the generated prompt or ask for one small real task:
 
@@ -61,7 +61,7 @@ npm run pi                 # start Pi in your project with harness guardrails
 npm run harness:next       # ask "what should I do next?"
 ```
 
-Advanced checks still exist for CI and maintainers, but they should not be the onboarding path.
+Advanced checks still exist for CI and maintainers, but they should not be the onboarding path. You do not need to install pnpm first; setup chooses the best available locked install path.
 
 If something fails, the CLI should answer four questions:
 

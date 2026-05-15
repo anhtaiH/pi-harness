@@ -21,15 +21,15 @@ const workflow = readFileSync(pathFromRoot(".github", "workflows", "pi-harness-g
 const ok = packageJson.packageManager?.startsWith("pnpm@")
   && existsSync(pathFromRoot("pnpm-lock.yaml"))
   && selection.name === "pnpm"
-  && installCommandText(selection) === "corepack pnpm install --frozen-lockfile"
+  && installCommandText(selection) === "corepack pnpm install --frozen-lockfile --ignore-scripts"
   && setup.status === 0
-  && installAction?.command === "corepack pnpm install --frozen-lockfile"
+  && installAction?.command === "corepack pnpm install --frozen-lockfile --ignore-scripts"
   && installAction?.packageManager?.name === "pnpm"
   && bootstrap.status === 0
   && packageManagerStep?.ok === true
   && String(packageManagerStep.detail || "").includes("pnpm")
   && workflow.includes("corepack enable")
-  && workflow.includes("corepack pnpm install --frozen-lockfile")
+  && workflow.includes("corepack pnpm install --frozen-lockfile --ignore-scripts")
   && !workflow.includes("cache: pnpm");
 
 console.log(JSON.stringify({
@@ -41,6 +41,6 @@ console.log(JSON.stringify({
   installAction: installAction ? { command: installAction.command, packageManager: installAction.packageManager } : null,
   bootstrapStatus: bootstrap.status,
   packageManagerStep,
-  workflowUsesPnpm: workflow.includes("corepack enable") && workflow.includes("corepack pnpm install --frozen-lockfile") && !workflow.includes("cache: pnpm"),
+  workflowUsesPnpm: workflow.includes("corepack enable") && workflow.includes("corepack pnpm install --frozen-lockfile --ignore-scripts") && !workflow.includes("cache: pnpm"),
 }, null, 2));
 process.exit(ok ? 0 : 1);

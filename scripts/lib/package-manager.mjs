@@ -17,7 +17,7 @@ export function selectPackageManager(root = pathFromRoot()) {
       name: "pnpm",
       available: true,
       command: "corepack",
-      installArgs: ["pnpm", "install", "--frozen-lockfile"],
+      installArgs: ["pnpm", "install", "--frozen-lockfile", "--ignore-scripts"],
       lockfile: pnpmLock ? "pnpm-lock.yaml" : null,
       reason: corepack ? "pnpm via Corepack" : "pnpm",
       fallback: false,

@@ -87,6 +87,7 @@ function planHarnessCopy() {
     "docs",
     "adapters",
     "harness.config.json",
+    "harness.pnpm-lock.yaml",
     "package.json",
     "package-lock.json",
     "pnpm-lock.yaml",
@@ -112,6 +113,7 @@ function planHarnessCopy() {
   if (!apply || findings.length) return;
   mkdirSync(sidecarDir, { recursive: true });
   for (const entry of entries) copyEntry(join(sourceRoot, entry), join(sidecarDir, entry));
+  restorePackagedLockfile(sidecarDir);
   if (adoptionMode === "local") writeProjectMetadata();
   createStateDirs(sidecarDir);
 }
@@ -187,6 +189,15 @@ function planGitignore() {
   actions.push({ id: "update-gitignore", title: "Protect local harness state", status: needed ? apply ? "ok" : "planned" : "skipped", applied: apply && needed, path: displayPath(gitignorePath), why: "Runtime sessions, package caches, and local auth must not be committed." });
   if (!apply || !needed || findings.length) return;
   writeFileSync(gitignorePath, existing.replace(/\s*$/, "") + block, "utf8");
+}
+
+function restorePackagedLockfile(root) {
+  const lockfile = join(root, "pnpm-lock.yaml");
+  const packagedLockfile = join(root, "harness.pnpm-lock.yaml");
+  if (!existsSync(lockfile) && existsSync(packagedLockfile)) {
+    copyFileSync(packagedLockfile, lockfile);
+    copied.push(displayPath(lockfile));
+  }
 }
 
 function writeProjectMetadata() {

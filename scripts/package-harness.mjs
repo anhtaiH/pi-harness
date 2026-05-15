@@ -26,6 +26,7 @@ const include = [
   "package.json",
   "package-lock.json",
   "pnpm-lock.yaml",
+  "harness.pnpm-lock.yaml",
   "package-provenance.lock.json",
   "package-approvals.json",
   "package-reviews",

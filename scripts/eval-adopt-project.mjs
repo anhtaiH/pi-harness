@@ -27,6 +27,7 @@ const localOk = localPlan.status === 0
   && existsSync(join(localHarness, "scripts", "setup-wizard.mjs"))
   && existsSync(localLauncher)
   && existsSync(join(localHarness, "pnpm-lock.yaml"))
+  && existsSync(join(localHarness, "harness.pnpm-lock.yaml"))
   && existsSync(join(localHarness, "AGENTS.md"))
   && existsSync(join(localHarness, ".github", "workflows", "pi-harness-gates.yml"))
   && localMetadata?.adoptionMode === "local"
@@ -45,7 +46,7 @@ const repoPkg = JSON.parse(readFileSync(join(repoTarget, "package.json"), "utf8"
 const repoScripts = repoPkg.scripts || {};
 const repoSidecar = join(repoTarget, ".pi-harness");
 const repoCopiedHarness = existsSync(join(repoSidecar, "scripts", "setup-wizard.mjs")) && existsSync(join(repoSidecar, "bin", "pi-harness"));
-const repoCopiedPnpmLock = existsSync(join(repoSidecar, "pnpm-lock.yaml"));
+const repoCopiedPnpmLock = existsSync(join(repoSidecar, "pnpm-lock.yaml")) && existsSync(join(repoSidecar, "harness.pnpm-lock.yaml"));
 const repoCopiedManifestSupport = existsSync(join(repoSidecar, "AGENTS.md")) && existsSync(join(repoSidecar, ".github", "workflows", "pi-harness-gates.yml"));
 const repoSetupPlanHasCapabilities = (repoSetupParsed?.actions || []).some((action) => action.id === "capability-guidance" && action.capabilities?.length === 3);
 const repoInstallAction = (repoSetupParsed?.actions || []).find((action) => action.id === "install-dependencies");

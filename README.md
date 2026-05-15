@@ -19,9 +19,17 @@ Default adoption is **local-only**: it copies the harness outside your project c
 After apply, run the commands printed under `Next`. They look like this:
 
 ```bash
-/path/to/local/pi-harness/projects/your-project-abc123/bin/pi-harness setup --apply --install
+/path/to/local/pi-harness/projects/your-project-abc123/bin/pi-harness setup --interactive
 /path/to/local/pi-harness/projects/your-project-abc123/bin/pi-harness
 ```
+
+If you prefer a non-interactive setup, pass choices directly:
+
+```bash
+/path/to/local/pi-harness/projects/your-project-abc123/bin/pi-harness setup --apply --install --alias ph --checks-profile standard
+```
+
+Adoption also writes a local registry entry. If the packaged `ph` command is on your `PATH`, it can locate the right local sidecar from inside an adopted project and run `ph next`, `ph`, or `ph done` without the long launcher path.
 
 If you want the old npm-run flow and are comfortable putting harness entry points in the project, choose repo mode:
 
@@ -33,7 +41,7 @@ npm run pi
 
 Repo mode copies the harness into `.pi-harness/` and adds a small set of npm scripts to your existing `package.json`. Local mode writes no project files by default; add `--scripts package-json` only if you intentionally want package scripts pointing at your local harness.
 
-The setup wizard installs the harness lockfile when asked, preferring fast pnpm via Corepack and falling back to npm when needed. It bootstraps local state, shows optional model/team/research batteries, runs checks, writes `state/setup/latest.json` under the harness root, and generates handoff prompts so you can ask Pi to continue with the exact handoff visible.
+The setup wizard installs the harness lockfile when asked, preferring fast pnpm via Corepack and falling back to npm when needed. It bootstraps local state, shows optional model/team/research batteries, detects project checks with a confidence/profile model, writes `state/setup/latest.json` under the harness root, writes a day-two cheatsheet, and generates handoff prompts so you can ask Pi to continue with the exact handoff visible.
 
 Inside Pi, hand over the generated prompt or ask for one small real task:
 
@@ -64,12 +72,13 @@ You should learn these by doing. `npm run harness:learn` prints the current stat
 Most days should only need the launcher that adoption printed:
 
 ```bash
-/path/to/local/pi-harness/.../bin/pi-harness setup      # guided setup/checks; add --apply to write local handoffs
-/path/to/local/pi-harness/.../bin/pi-harness            # start Pi in your project with harness guardrails
-/path/to/local/pi-harness/.../bin/pi-harness next       # ask "what should I do next?"
+/path/to/local/pi-harness/.../bin/pi-harness setup --apply   # guided setup, project checks, alias snippet, cheatsheet
+/path/to/local/pi-harness/.../bin/pi-harness next            # ask "what should I do next?"
+/path/to/local/pi-harness/.../bin/pi-harness                 # start Pi in your project with harness guardrails
+/path/to/local/pi-harness/.../bin/pi-harness done            # evidence + review policy + finish gates
 ```
 
-In repo mode, the same loop is available as `npm run harness:setup`, `npm run pi`, and `npm run harness:next`.
+Setup can also write a local alias snippet, so your daily loop can become `ph next`, `ph`, and `ph done` after you source the generated `state/setup/ph-alias.sh` file. If `ph` is installed from the package, the registry resolver maps the current project to the right sidecar. In repo mode, the same loop is available as `npm run harness:setup`, `npm run pi`, `npm run harness:next`, and `npm run harness:done`.
 
 Advanced checks still exist for CI and maintainers, but they should not be the onboarding path. You do not need to install pnpm first; setup chooses the best available locked install path.
 
@@ -88,9 +97,10 @@ The harness should behave like Pi extensions do: ask the agent to improve the sy
 
 The setup command is the transparent wizard (`.../bin/pi-harness setup` in local mode, `npm run harness:setup` in repo mode):
 
-- **inspect**: show local facts such as Node, lockfile, installed dependencies, local Pi, and optional batteries
-- **apply**: with `--apply`, automate safe local boilerplate instead of asking a human to copy steps
-- **verify**: run fast checks, or full gates with `--run-gates`
+- **inspect**: show local facts such as Node, lockfile, installed dependencies, local Pi, detected project checks, and optional batteries
+- **apply**: with `--apply`, automate safe local boilerplate, project-check adapter generation, alias snippets, and a day-two cheatsheet instead of asking a human to copy steps
+- **choose**: with `--interactive`, ask for apply/install/check-profile/alias/gates choices without editing shell rc files
+- **verify**: run fast checks, project-check doctors, saved project-check profiles, or full gates with `--run-gates`
 - **hand off**: generate Pi prompts that say what happened and how the agent should continue
 
 Nothing external is hidden in the wizard. Risky work still needs the normal harness gates.
@@ -148,7 +158,7 @@ The harness is deliberately boring where agents are usually risky:
 
 - no unscoped work: start from a task packet
 - no invisible progress: record useful checkpoints
-- no "trust me" finish: write evidence and pass finish gates
+- no "trust me" finish: use the done flow to run project checks, review policy, evidence, and finish gates
 - no accidental credential exposure: protected local paths stay blocked
 - no quiet GitHub/Jira/Slack/Confluence writes: external writes need intent and proof
 - no permanent tool expansion: MCP/subagent permissions are narrow, task-scoped, and expiring

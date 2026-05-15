@@ -116,6 +116,7 @@ function planHarnessCopy() {
   restorePackagedLockfile(sidecarDir);
   if (adoptionMode === "local") writeProjectMetadata();
   createStateDirs(sidecarDir);
+  writeAdoptionRegistry();
 }
 
 function planPackageJson() {
@@ -152,6 +153,11 @@ function packageScripts() {
       "harness:learn": "node .pi-harness/scripts/harnessctl.mjs learn",
       "harness:check": "node .pi-harness/scripts/harnessctl.mjs check",
       "harness:ready": "node .pi-harness/scripts/harnessctl.mjs ready",
+      "harness:done": "node .pi-harness/scripts/done-task.mjs",
+      "harness:checks": "node .pi-harness/scripts/project-checks.mjs",
+      "harness:review-policy": "node .pi-harness/scripts/review-policy.mjs",
+      "harness:proof": "node .pi-harness/scripts/proof-ledger.mjs",
+      "harness:long-run": "node .pi-harness/scripts/long-run.mjs",
       pi: "./.pi-harness/bin/pi-harness",
       "pi:print": "./.pi-harness/bin/pi-harness -p",
     };
@@ -163,6 +169,11 @@ function packageScripts() {
     "harness:learn": `${launcher} learn`,
     "harness:check": `${launcher} check`,
     "harness:ready": `${launcher} ready`,
+    "harness:done": `${launcher} done`,
+    "harness:checks": `${launcher} checks`,
+    "harness:review-policy": `${launcher} review-policy`,
+    "harness:proof": `${launcher} proof`,
+    "harness:long-run": `${launcher} long-run`,
     pi: launcher,
     "pi:print": `${launcher} -p`,
   };
@@ -198,6 +209,21 @@ function restorePackagedLockfile(root) {
     copyFileSync(packagedLockfile, lockfile);
     copied.push(displayPath(lockfile));
   }
+}
+
+function writeAdoptionRegistry() {
+  const path = join(harnessHome(), "registry.json");
+  const existing = readJsonIfExists(path) || { schemaVersion: 1, projects: {} };
+  const projects = existing.projects && typeof existing.projects === "object" ? existing.projects : {};
+  projects[targetRoot] = {
+    projectRoot: targetRoot,
+    harnessRoot: sidecarDir,
+    adoptionMode,
+    updatedAt: nowIso(),
+  };
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, JSON.stringify({ schemaVersion: 1, updatedAt: nowIso(), projects }, null, 2) + "\n", "utf8");
+  copied.push(displayPath(path));
 }
 
 function writeProjectMetadata() {
@@ -238,7 +264,7 @@ function skipName(name) {
 }
 
 function createStateDirs(root) {
-  for (const dir of ["evals", "locks", "memory", "notes", "package-reviews", "policy", "provenance", "reviews", "sessions", "setup", "status", "tasks", "tmp", "tool-proposals", "traces"]) {
+  for (const dir of ["evals", "locks", "long-runs", "memory", "notes", "package-reviews", "policy", "provenance", "reviews", "sessions", "setup", "status", "tasks", "tmp", "tool-proposals", "traces"]) {
     const target = join(root, "state", dir);
     mkdirSync(target, { recursive: true });
     const keep = join(target, ".gitkeep");
@@ -251,15 +277,19 @@ function nextSteps() {
   const steps = [];
   const applyCommand = adoptionApplyCommand();
   const launcher = shellQuote(join(sidecarDir, "bin", "pi-harness"));
+  const globalCommand = "ph";
   if (!apply) steps.push("Apply adoption after reviewing the plan: `" + applyCommand + "`.");
   if (adoptionMode === "local") {
     steps.push("Install/check the local harness: `" + launcher + " setup --apply --install`.");
+    steps.push("If `ph` is on PATH, the registry lets you run from this project: `" + globalCommand + " next`, `" + globalCommand + "`, `" + globalCommand + " done`.");
     steps.push("Start Pi in this project: `" + launcher + "`.");
+    steps.push("Finish tasks with evidence/gates: `" + launcher + " done`.");
     steps.push("When you intentionally need team/research batteries: `PI_HARNESS_ENABLE_PROJECT_PACKAGES=1 " + launcher + "`.");
     if (scriptsMode === "none") steps.push("Optional: rerun with `--scripts package-json` if you want npm scripts that point at this local harness.");
   } else {
     steps.push("Install/check the repo sidecar: `npm run harness:setup -- --apply --install`.");
     steps.push("Start Pi from your project: `npm run pi`.");
+    steps.push("Finish tasks with evidence/gates: `npm run harness:done`.");
     steps.push("When you intentionally need team/research batteries: `PI_HARNESS_ENABLE_PROJECT_PACKAGES=1 npm run pi`.");
   }
   return steps;

@@ -9,6 +9,13 @@
     "externalWritesRequireIntent": true,
     "evidenceBeforeDone": true
   },
+  "reviewPolicy": {
+    "requiredByRisk": {
+      "green": "none",
+      "yellow": "recommended",
+      "red": "required"
+    }
+  },
   "toolPolicy": {
     "defaultMode": "strict",
     "runtimeEnforcement": true,

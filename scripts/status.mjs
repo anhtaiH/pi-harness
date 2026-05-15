@@ -102,7 +102,7 @@ function nextActions(status) {
   if (status.policyProfiles.expired > 0 || status.policyProfiles.clearOnFinishPending > 0) actions.push("Run `npm run policy:profile -- prune --dry-run --json`, then prune stale/done task policies if expected.");
   if (status.memory.stale > 0 || status.memory.duplicates.length > 0) actions.push("Run `npm run memory -- prune --all --dry-run --json` and remove stale/duplicate memory only after review.");
   if (status.latestEval && status.latestEval.ok === false) actions.push("Inspect `state/evals/latest.json`, fix failing evals, then rerun `npm run eval`.");
-  if (openTasks.length > 0) actions.push(`Continue or finish open task ${openTasks[0].id}; write evidence before claiming done.`);
+  if (openTasks.length > 0) actions.push(`Continue or finish open task ${openTasks[0].id}; use the done flow so evidence and finish gates run before claiming done.`);
   if (actions.length === 0) actions.push("Harness looks locally ready; for rollout use a dedicated task and run `npm run harness:ready -- --run-gates`.");
   return actions;
 }

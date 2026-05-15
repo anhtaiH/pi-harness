@@ -19,9 +19,12 @@ if (!existsSync(taskJson)) {
 
 const taskDoctor = runJson("node", ["scripts/task-doctor.mjs", taskId, "--json"]);
 const evidence = runJson("node", ["scripts/evidence-doctor.mjs", taskId, "--json"]);
+const proofLedger = runJson("node", ["scripts/proof-ledger.mjs", "doctor", "--task", taskId, "--json"]);
 const externalWrites = runJson("node", ["scripts/external-write.mjs", "doctor", "--task", taskId, "--json"]);
 const memory = runJson("node", ["scripts/memory.mjs", "doctor", "--json"]);
 const reviews = runJson("node", ["scripts/review-lane.mjs", "doctor", "--task", taskId, "--json"]);
+const reviewPolicy = runJson("node", ["scripts/review-policy.mjs", "doctor", "--task", taskId, "--json"]);
+const projectChecks = runJson("node", ["scripts/project-checks.mjs", "doctor", "--json"]);
 const secrets = runJson("node", ["scripts/secret-scan.mjs", "--json"]);
 const packageProvenance = runJson("node", ["scripts/package-provenance.mjs", "check", "--json"]);
 const packageApprovals = runJson("node", ["scripts/package-approval.mjs", "doctor", "--json"]);
@@ -29,7 +32,7 @@ const toolPolicy = runJson("node", ["scripts/tool-policy.mjs", "doctor", "--json
 const policyProfiles = runJson("node", ["scripts/policy-profile.mjs", "doctor", "--json"]);
 const writerLock = runJson("node", ["scripts/writer-lock.mjs", "doctor", "--json"]);
 const evals = runJson("node", ["scripts/eval-runner.mjs", "--json"]);
-const ok = taskDoctor.ok && evidence.ok && externalWrites.ok && memory.ok && reviews.ok && secrets.ok && packageProvenance.ok && packageApprovals.ok && toolPolicy.ok && policyProfiles.ok && writerLock.ok && evals.ok;
+const ok = taskDoctor.ok && evidence.ok && proofLedger.ok && externalWrites.ok && memory.ok && reviews.ok && reviewPolicy.ok && projectChecks.ok && secrets.ok && packageProvenance.ok && packageApprovals.ok && toolPolicy.ok && policyProfiles.ok && writerLock.ok && evals.ok;
 const task = JSON.parse(readFileSync(taskJson, "utf8"));
 task.updatedAt = new Date().toISOString();
 task.status = ok ? "done" : "blocked";
@@ -38,16 +41,19 @@ writeFileSync(taskJson, `${JSON.stringify(task, null, 2)}\n`, "utf8");
 const clearedPolicyProfile = ok ? clearPolicyProfileOnFinish(taskId) : null;
 
 const summaryFile = join(root, "state", "tasks", taskId, "run-summary.md");
-writeFileSync(summaryFile, renderSummary({ taskId, taskDoctor, evidence, externalWrites, memory, reviews, secrets, packageProvenance, packageApprovals, toolPolicy, policyProfiles, writerLock, evals, ok, clearedPolicyProfile }), "utf8");
+writeFileSync(summaryFile, renderSummary({ taskId, taskDoctor, evidence, proofLedger, externalWrites, memory, reviews, reviewPolicy, projectChecks, secrets, packageProvenance, packageApprovals, toolPolicy, policyProfiles, writerLock, evals, ok, clearedPolicyProfile }), "utf8");
 
 exitWith({
   ok,
   taskId,
   taskDoctor,
   evidence,
+  proofLedger,
   externalWrites,
   memory,
   reviews,
+  reviewPolicy,
+  projectChecks,
   secrets,
   packageProvenance,
   packageApprovals,
@@ -60,9 +66,12 @@ exitWith({
   findings: [
     ...taskDoctor.findings,
     ...evidence.findings,
+    ...proofLedger.findings,
     ...externalWrites.findings,
     ...memory.findings,
     ...reviews.findings,
+    ...reviewPolicy.findings,
+    ...projectChecks.findings,
     ...secrets.findings.map((finding) => `${finding.path}: ${finding.reason}`),
     ...packageProvenance.findings,
     ...packageApprovals.findings,
@@ -99,9 +108,12 @@ function renderSummary(result) {
     `- Completed at: ${new Date().toISOString()}`,
     `- Task doctor: ${result.taskDoctor.ok ? "pass" : "fail"}`,
     `- Evidence: ${result.evidence.ok ? "pass" : "fail"}`,
+    `- Proof ledger: ${result.proofLedger.ok ? "pass" : "fail"} (${result.proofLedger.count ?? 0} entries)`,
     `- External writes: ${result.externalWrites.ok ? "pass" : "fail"}`,
     `- Memory: ${result.memory.ok ? "pass" : "fail"} (${result.memory.count ?? 0} entries, ${(result.memory.stale || []).length} stale)` ,
     `- Reviews: ${result.reviews.ok ? "pass" : "fail"} (${result.reviews.laneCount ?? 0} lanes, ${result.reviews.findingCount ?? 0} findings)` ,
+    `- Review policy: ${result.reviewPolicy.ok ? "pass" : "fail"} (${result.reviewPolicy.requirement || "none"})`,
+    `- Project checks: ${result.projectChecks.ok ? "pass" : "fail"} (${result.projectChecks.summary?.enabled ?? 0}/${result.projectChecks.summary?.count ?? 0} enabled)`,
     `- Secret scan: ${result.secrets.ok ? "pass" : "fail"}`,
     `- Package provenance: ${result.packageProvenance.ok ? "pass" : "fail"}`,
     `- Package approvals: ${result.packageApprovals.ok ? "pass" : "fail"} (${result.packageApprovals.approvalCount ?? 0} approval records, ${(result.packageApprovals.warnings || []).length} warnings)`,
@@ -120,6 +132,10 @@ function renderSummary(result) {
     "",
     result.evidence.findings.length ? result.evidence.findings.map((finding) => `- ${finding}`).join("\n") : "- None.",
     "",
+    "## Proof Ledger Findings",
+    "",
+    result.proofLedger.findings.length ? result.proofLedger.findings.map((finding) => `- ${finding}`).join("\n") : "- None.",
+    "",
     "## External Write Findings",
     "",
     result.externalWrites.findings.length ? result.externalWrites.findings.map((finding) => `- ${finding}`).join("\n") : "- None.",
@@ -131,6 +147,14 @@ function renderSummary(result) {
     "## Review Findings",
     "",
     result.reviews.findings.length ? result.reviews.findings.map((finding) => `- ${finding}`).join("\n") : "- None.",
+    "",
+    "## Review Policy Findings",
+    "",
+    result.reviewPolicy.findings.length ? result.reviewPolicy.findings.map((finding) => `- ${finding}`).join("\n") : "- None.",
+    "",
+    "## Project Check Findings",
+    "",
+    result.projectChecks.findings.length ? result.projectChecks.findings.map((finding) => `- ${finding}`).join("\n") : "- None.",
     "",
     "## Secret Scan Findings",
     "",
@@ -185,9 +209,12 @@ function compactResult(result) {
     checks: {
       taskDoctor: summarizeCheck(result.taskDoctor),
       evidence: summarizeCheck(result.evidence),
+      proofLedger: summarizeCheck(result.proofLedger, { count: result.proofLedger?.count }),
       externalWrites: summarizeCheck(result.externalWrites),
       memory: summarizeCheck(result.memory, { count: result.memory?.count }),
       reviews: summarizeCheck(result.reviews, { laneCount: result.reviews?.laneCount, findingCount: result.reviews?.findingCount }),
+      reviewPolicy: summarizeCheck(result.reviewPolicy, { requirement: result.reviewPolicy?.requirement, warnings: result.reviewPolicy?.warnings?.length }),
+      projectChecks: summarizeCheck(result.projectChecks, { enabled: result.projectChecks?.summary?.enabled, count: result.projectChecks?.summary?.count }),
       secrets: summarizeCheck(result.secrets, { skipped: result.secrets?.skipped?.length }),
       packageProvenance: summarizeCheck(result.packageProvenance, { packageCount: result.packageProvenance?.packages?.length }),
       packageApprovals: summarizeCheck(result.packageApprovals, { approvalCount: result.packageApprovals?.approvalCount }),

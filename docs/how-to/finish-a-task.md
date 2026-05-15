@@ -4,7 +4,25 @@ A task is not done when the agent says it is done. It is done when [evidence](..
 
 Evidence is the proof. The finish gate is the final harness check.
 
-## 1. Check the task packet
+## 1. Prefer the done flow
+
+From the shell:
+
+```bash
+npm run harness:done -- --task <taskId> --json
+```
+
+Or, in local wrapper mode:
+
+```bash
+/path/to/local/pi-harness/.../bin/pi-harness done --task <taskId>
+```
+
+Or inside Pi, use `harness_done_task` / `/harness-done`.
+
+The done flow checks the task packet, auto-plans a fresh-context review lane when risk policy calls for one, runs configured project checks, writes a proof ledger with command transcripts, drafts evidence when needed, validates evidence, and runs the finish gate. If it blocks, fix the reported blocker and rerun it.
+
+## 2. Manual fallback: check the task packet
 
 ```bash
 npm run task:doctor -- <taskId> --json
@@ -12,7 +30,7 @@ npm run task:doctor -- <taskId> --json
 
 Fix missing scope, desired behavior, verification, or stop conditions.
 
-## 2. Write evidence
+## 3. Manual fallback: write evidence
 
 Inside Pi, ask the agent:
 
@@ -22,13 +40,14 @@ Write harness evidence for this task with summary, positive proof, negative proo
 
 Evidence should be specific. "Tests passed" is weaker than "checkout-total.test.ts passed and the non-discount path still renders the original total."
 
-## 3. Validate evidence
+## 4. Validate evidence and proof ledger
 
 ```bash
 npm run evidence:doctor -- <taskId> --json
+npm run harness:proof -- doctor --task <taskId> --json
 ```
 
-## 4. Close external writes
+## 5. Close external writes
 
 If the task planned a GitHub comment, PR, Jira update, deploy, or similar action, every intent needs proof or cancellation.
 
@@ -36,7 +55,7 @@ If the task planned a GitHub comment, PR, Jira update, deploy, or similar action
 npm run external-write -- doctor --task <taskId> --json
 ```
 
-## 5. Release the writer lock
+## 6. Release the writer lock
 
 If implementation is done, release the lock before full gates.
 
@@ -44,7 +63,7 @@ If implementation is done, release the lock before full gates.
 Use harness_writer_lock to release the active writer lock for this task.
 ```
 
-## 6. Run finish
+## 7. Run finish
 
 ```bash
 npm run finish -- <taskId> --json

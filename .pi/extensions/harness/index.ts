@@ -83,6 +83,16 @@ export default function harnessExtension(pi: any) {
     },
   });
 
+  pi.registerCommand("harness-done", {
+    description: "Draft evidence, run project/review checks, and finish the active harness task",
+    handler: async (args: string, ctx: any) => {
+      const parts = args.trim() ? args.trim().split(/\s+/) : [];
+      const result = runJsonScript("done-task.mjs", [...parts, "--json"]);
+      if (result.ok && result.taskId) clearActiveTask(result.taskId);
+      ctx.ui.notify(result.ok ? `Done ${result.taskId}` : `Done blocked\n${(result.findings || []).join("\n")}`, result.ok ? "success" : "error");
+    },
+  });
+
   pi.registerTool({
     name: "harness_status",
     label: "Harness Status",
@@ -903,6 +913,33 @@ export default function harnessExtension(pi: any) {
   });
 
   pi.registerTool({
+    name: "harness_done_task",
+    label: "Harness Done",
+    description: "Draft evidence, run project/review checks, and finish a local harness task.",
+    parameters: Type.Object({
+      taskId: Type.Optional(Type.String({ description: "Task id under state/tasks. Defaults to active task." })),
+      forceEvidence: Type.Optional(Type.Boolean({ description: "Rewrite evidence even if evidence doctor already passes." })),
+      skipProjectChecks: Type.Optional(Type.Boolean({ description: "Skip project-specific checks." })),
+      skipFinish: Type.Optional(Type.Boolean({ description: "Draft/validate evidence but do not run finish gates." })),
+    }),
+    promptSnippet: "harness_done_task runs the completion flow: project checks, review policy, evidence, and finish gates.",
+    promptGuidelines: [
+      "Use harness_done_task instead of separately writing evidence and finishing when a task is ready to close.",
+      "If it blocks, fix the reported blocker before claiming completion.",
+    ],
+    async execute(_toolCallId: string, params: { taskId?: string; forceEvidence?: boolean; skipProjectChecks?: boolean; skipFinish?: boolean }) {
+      const args = ["--json"];
+      if (params.taskId) args.push("--task", params.taskId);
+      if (params.forceEvidence) args.push("--force-evidence");
+      if (params.skipProjectChecks) args.push("--skip-project-checks");
+      if (params.skipFinish) args.push("--skip-finish");
+      const result = runJsonScript("done-task.mjs", args);
+      if (result.ok && result.taskId) clearActiveTask(result.taskId);
+      return textResult(JSON.stringify(result, null, 2), result);
+    },
+  });
+
+  pi.registerTool({
     name: "harness_write_evidence",
     label: "Write Harness Evidence",
     description: "Write completion evidence for a local harness task.",
@@ -956,7 +993,7 @@ export default function harnessExtension(pi: any) {
         "",
         "## Skipped Checks",
         "",
-        params.skippedChecks || "- Check: none\n- Reason: no skipped checks\n- Residual risk: none identified",
+        params.skippedChecks || "- Check: no skipped checks\n- Reason: all required checks for this task were run\n- Residual risk: none identified beyond documented diff risk",
         "",
         "## Diff Risk Notes",
         "",
@@ -964,7 +1001,7 @@ export default function harnessExtension(pi: any) {
         "",
         "## Memory Candidates",
         "",
-        params.memoryCandidates || "- Candidate: none\n- Source: this task\n- Confidence: n/a",
+        params.memoryCandidates || "- Candidate: no reusable memory candidate identified\n- Source: this task\n- Confidence: low",
         "",
         "## End",
         "",

@@ -1,0 +1,14 @@
+{
+  "id": "day-two-build-order-flow",
+  "command": [
+    "node",
+    "scripts/eval-day-two-build-order.mjs"
+  ],
+  "expectExit": 0,
+  "stdoutIncludes": [
+    "\"ok\": true",
+    "typecheck",
+    "doneDrafted"
+  ],
+  "timeoutMs": 120000
+}

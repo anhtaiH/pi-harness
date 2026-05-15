@@ -1,36 +1,55 @@
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { createInterface } from "node:readline/promises";
+import { stdin as processStdin, stdout as processStdout } from "node:process";
 import { dirname } from "node:path";
 import { spawnSync } from "node:child_process";
-import { commandWithArgs, harnessCommand, hasFlag, nowIso, pathFromRoot, timestampId } from "./lib/harness-state.mjs";
+import { commandWithArgs, harnessCommand, hasFlag, nowIso, parseFlag, pathFromRoot, shellQuote, timestampId } from "./lib/harness-state.mjs";
 import { installCommandText, selectPackageManager } from "./lib/package-manager.mjs";
 
-const args = process.argv.slice(2);
+const rawArgs = process.argv.slice(2);
+const setupWarnings = [];
+const answers = await collectSetupAnswers(rawArgs, setupWarnings);
+const args = rawArgs;
 const json = hasFlag(args, "--json");
-const apply = hasFlag(args, "--apply");
-const install = hasFlag(args, "--install");
-const runGates = hasFlag(args, "--run-gates");
-const allowOpenTasks = hasFlag(args, "--allow-open-tasks");
-const allowWriterLock = hasFlag(args, "--allow-writer-lock");
+const apply = hasFlag(args, "--apply") || answers.apply === true;
+const install = hasFlag(args, "--install") || answers.install === true;
+const runGates = hasFlag(args, "--run-gates") || answers.runGates === true;
+const allowOpenTasks = hasFlag(args, "--allow-open-tasks") || answers.allowOpenTasks === true;
+const allowWriterLock = hasFlag(args, "--allow-writer-lock") || answers.allowWriterLock === true;
+const noAlias = hasFlag(args, "--no-alias") || answers.alias === false || answers.alias === "";
+const noProjectChecks = hasFlag(args, "--no-project-checks") || answers.projectChecks === false;
+const aliasName = String(answers.alias && answers.alias !== true ? answers.alias : parseFlag(args, "--alias", "ph"));
+const checksProfile = String(answers.checksProfile || parseFlag(args, "--checks-profile", "standard"));
 const setupDir = pathFromRoot("state", "setup");
 const promptPath = pathFromRoot("state", "setup", "agent-prompt.md");
 const latestPath = pathFromRoot("state", "setup", "latest.json");
 const runPath = pathFromRoot("state", "setup", "run-" + timestampId() + ".json");
+const aliasPath = pathFromRoot("state", "setup", `${aliasName}-alias.sh`);
+const aliasJsonPath = pathFromRoot("state", "setup", "command-alias.json");
+const cheatsheetPath = pathFromRoot("state", "setup", "cheatsheet.md");
+const projectChecksPath = pathFromRoot("state", "setup", "project-checks.json");
+const projectAdapterPath = pathFromRoot("state", "setup", "project-adapter.harness.json");
 
 const actions = [];
-const warnings = [];
+const warnings = [...setupWarnings];
 const findings = [];
+if (answers.parseError) findings.push(`invalid setup answers JSON: ${answers.parseError}`);
 
 inspectRepo();
 installDeps();
 bootstrapState();
+projectCheckGuidance();
 verifyHarness();
 capabilityGuidance();
+reviewPolicyGuidance();
+aliasGuidance();
+cheatsheet();
 agentHandoff();
 
 const result = {
   ok: findings.length === 0,
   generatedAt: nowIso(),
-  mode: { apply, install, runGates, allowOpenTasks, allowWriterLock },
+  mode: { apply, install, runGates, allowOpenTasks, allowWriterLock, interactive: hasFlag(args, "--interactive"), checksProfile, alias: noAlias ? "disabled" : aliasName },
   summary: apply ? "setup applied" : "setup plan only",
   actions,
   warnings,
@@ -39,6 +58,10 @@ const result = {
     prompt: apply ? rel(promptPath) : "planned: state/setup/agent-prompt.md",
     latest: apply ? rel(latestPath) : "planned: state/setup/latest.json",
     run: apply ? rel(runPath) : "planned: state/setup/run-<timestamp>.json",
+    alias: apply && !noAlias ? rel(aliasPath) : "planned: state/setup/<alias>-alias.sh",
+    cheatsheet: apply ? rel(cheatsheetPath) : "planned: state/setup/cheatsheet.md",
+    projectChecks: apply && !noProjectChecks ? rel(projectChecksPath) : "planned: state/setup/project-checks.json",
+    projectAdapter: apply && !noProjectChecks ? rel(projectAdapterPath) : "planned: state/setup/project-adapter.harness.json",
   },
   next: nextSteps(),
 };
@@ -47,6 +70,58 @@ if (apply) saveResult(result);
 if (json) console.log(JSON.stringify(result, null, 2));
 else printHuman(result);
 process.exit(result.ok ? 0 : 1);
+
+async function collectSetupAnswers(argv, setupWarnings) {
+  const provided = loadProvidedAnswers(argv);
+  if (!hasFlag(argv, "--interactive")) return provided;
+  if (!processStdin.isTTY || !processStdout.isTTY) {
+    setupWarnings.push("--interactive requested but stdin/stdout are not TTY; using flags/answers only.");
+    return provided;
+  }
+  const rl = createInterface({ input: processStdin, output: processStdout });
+  try {
+    const next = { ...provided };
+    next.apply = await askYesNo(rl, "Apply safe local setup now?", Boolean(next.apply || hasFlag(argv, "--apply")));
+    next.install = await askYesNo(rl, "Install harness dependencies now if missing?", Boolean(next.install || hasFlag(argv, "--install")));
+    next.projectChecks = await askYesNo(rl, "Detect and save project checks?", next.projectChecks !== false && !hasFlag(argv, "--no-project-checks"));
+    if (next.projectChecks !== false) next.checksProfile = await askChoice(rl, "Default check profile", ["quick", "standard", "full"], String(next.checksProfile || parseFlag(argv, "--checks-profile", "standard")));
+    const wantsAlias = await askYesNo(rl, "Write a local alias snippet?", next.alias !== false && !hasFlag(argv, "--no-alias"));
+    next.alias = wantsAlias ? await askText(rl, "Alias name", String(next.alias && next.alias !== true ? next.alias : parseFlag(argv, "--alias", "ph"))) : false;
+    next.runGates = await askYesNo(rl, "Run full gates now?", Boolean(next.runGates || hasFlag(argv, "--run-gates")));
+    return next;
+  } finally {
+    rl.close();
+  }
+}
+
+function loadProvidedAnswers(argv) {
+  const inline = parseFlag(argv, "--answers-json", "");
+  const file = parseFlag(argv, "--answers-file", "");
+  const text = inline ? inline : file ? readFileSync(file, "utf8") : "";
+  if (!text) return {};
+  try {
+    return JSON.parse(text);
+  } catch (error) {
+    return { parseError: String(error.message || error) };
+  }
+}
+
+async function askYesNo(rl, question, defaultValue) {
+  const suffix = defaultValue ? "Y/n" : "y/N";
+  const answer = (await rl.question(`${question} [${suffix}] `)).trim().toLowerCase();
+  if (!answer) return defaultValue;
+  return ["y", "yes", "true", "1"].includes(answer);
+}
+
+async function askChoice(rl, question, choices, defaultValue) {
+  const answer = (await rl.question(`${question} (${choices.join("/")}) [${defaultValue}] `)).trim().toLowerCase();
+  return choices.includes(answer) ? answer : defaultValue;
+}
+
+async function askText(rl, question, defaultValue) {
+  const answer = (await rl.question(`${question} [${defaultValue}] `)).trim();
+  return answer || defaultValue;
+}
 
 function inspectRepo() {
   const nodeMajor = Number(process.versions.node.split(".")[0]);
@@ -118,6 +193,100 @@ function verifyHarness() {
     return;
   }
   capture({ id: "verify-readiness", title: runGates ? "Run full gates" : "Run fast checks", command: display(command), why: "Turn setup into a checked flow.", result: run(command[0], command.slice(1), runGates ? 10 * 60_000 : 120_000) });
+}
+
+function projectCheckGuidance() {
+  if (noProjectChecks) {
+    actions.push({ id: "project-checks", title: "Detect project checks", status: "skipped", applied: false, why: "Skipped by --no-project-checks." });
+    return;
+  }
+  const command = [process.execPath, "scripts/project-checks.mjs", "detect", "--profile", checksProfile, "--json"];
+  if (apply) command.splice(3, 0, "--apply");
+  const result = run(command[0], command.slice(1), 120_000);
+  const parsed = parseJson(result.stdout);
+  const ok = result.status === 0 && parsed?.ok !== false;
+  const reason = ok ? "pass" : parsed?.findings?.join("; ") || result.stderr.trim() || result.stdout.trim().slice(0, 500) || "exit " + result.status;
+  actions.push({
+    id: "project-checks",
+    title: "Detect project checks",
+    status: ok ? "ok" : "failed",
+    applied: apply,
+    command: display(command),
+    why: "Let the harness discover lint/typecheck/test/build commands instead of making each project hand-write adapters from scratch.",
+    result: { status: result.status, ok, reason, summary: parsed?.summary || {} },
+    checks: (parsed?.checks || []).map((item) => ({ id: item.id, command: item.command, tier: item.tier, enabled: item.enabled })),
+    artifacts: apply ? [rel(projectChecksPath), rel(projectAdapterPath)] : [],
+  });
+  if (parsed?.warnings?.length) warnings.push(...parsed.warnings.map((warning) => "project checks: " + warning));
+  if (!ok) findings.push("project-checks: " + reason);
+}
+
+function reviewPolicyGuidance() {
+  const result = run(process.execPath, ["scripts/review-policy.mjs", "explain", "--json"], 120_000);
+  const parsed = parseJson(result.stdout);
+  const ok = result.status === 0 && parsed?.ok !== false;
+  const reason = ok ? "pass" : parsed?.findings?.join("; ") || result.stderr.trim() || result.stdout.trim().slice(0, 500) || "exit " + result.status;
+  actions.push({
+    id: "review-policy",
+    title: "Explain risk-based review policy",
+    status: ok ? "ok" : "failed",
+    applied: false,
+    command: "node scripts/review-policy.mjs explain --json",
+    why: "Make fresh-context review a visible risk decision instead of a manual afterthought.",
+    result: { status: result.status, ok, reason, policy: parsed?.policy || {} },
+  });
+  if (!ok) findings.push("review-policy: " + reason);
+}
+
+function aliasGuidance() {
+  if (noAlias) {
+    actions.push({ id: "command-alias", title: "Choose day-to-day command alias", status: "skipped", applied: false, why: "Skipped by --no-alias." });
+    return;
+  }
+  if (!/^[A-Za-z][A-Za-z0-9_-]{0,31}$/.test(aliasName)) {
+    findings.push("--alias must start with a letter and contain only letters, numbers, dash, or underscore");
+    actions.push({ id: "command-alias", title: "Choose day-to-day command alias", status: "failed", applied: false, why: "Aliases should be shell-safe and easy to type.", alias: aliasName });
+    return;
+  }
+  const launcher = pathFromRoot("bin", "pi-harness");
+  const snippet = [
+    "# Pi harness day-to-day alias",
+    "# Source this file from your shell rc if you want the short command.",
+    `alias ${aliasName}=${shellQuote(launcher)}`,
+    "",
+  ].join("\n");
+  if (apply) {
+    mkdirSync(dirname(aliasPath), { recursive: true });
+    writeFileSync(aliasPath, snippet, "utf8");
+    writeFileSync(aliasJsonPath, JSON.stringify({ alias: aliasName, launcher, snippet: rel(aliasPath), updatedAt: nowIso() }, null, 2) + "\n", "utf8");
+  }
+  actions.push({
+    id: "command-alias",
+    title: "Choose day-to-day command alias",
+    status: apply ? "ok" : "planned",
+    applied: apply,
+    alias: aliasName,
+    path: apply ? rel(aliasPath) : "state/setup/<alias>-alias.sh",
+    command: `source ${apply ? rel(aliasPath) : "state/setup/<alias>-alias.sh"}`,
+    why: "Local and repo mode should feel like one API: ph next, ph setup, ph, ph done.",
+  });
+}
+
+function cheatsheet() {
+  const content = cheatsheetText();
+  if (apply) {
+    mkdirSync(dirname(cheatsheetPath), { recursive: true });
+    writeFileSync(cheatsheetPath, content, "utf8");
+  }
+  actions.push({
+    id: "day-two-cheatsheet",
+    title: "Write day-two cheatsheet",
+    status: apply ? "ok" : "planned",
+    applied: apply,
+    path: apply ? rel(cheatsheetPath) : "state/setup/cheatsheet.md",
+    why: "End setup with the exact daily loop, not a pointer to a long manual.",
+    preview: content.split(/\r?\n/).slice(0, 10),
+  });
 }
 
 function capabilityGuidance() {
@@ -203,7 +372,9 @@ function nextSteps() {
   const steps = [];
   const setupCommand = harnessCommand("setup");
   if (!apply) steps.push("Apply safe local setup: `" + commandWithArgs(setupCommand, "--apply") + "`.");
+  if (apply && !noAlias) steps.push("Optional short command: `source " + rel(aliasPath) + "`, then use `" + aliasName + " next`, `" + aliasName + "`, and `" + aliasName + " done`.");
   if (apply && !runGates) steps.push("For full confidence: `" + commandWithArgs(setupCommand, "--apply --run-gates --allow-open-tasks") + "`.");
+  if (apply) steps.push("Inspect the day-two cheatsheet: " + rel(cheatsheetPath) + ".");
   if (apply) steps.push("Inspect the generated Pi prompt: " + rel(promptPath) + ".");
   if (apply) steps.push("Start Pi with `" + harnessCommand("pi") + "` and hand it the generated prompt.");
   steps.push("Use `" + harnessCommand("next") + "` when you are unsure what to do next.");
@@ -228,13 +399,82 @@ function promptText() {
     "4. Explain the plan as inspect, apply, verify, hand off.",
     "5. Automate safe local boilerplate instead of asking the human to copy commands.",
     "6. Show commands and artifacts so the human can watch what happened.",
-    "7. Write evidence before claiming completion.",
+    "7. Use the done flow before claiming completion: run project checks, review policy, evidence doctor, and finish gates.",
     "",
     "Useful commands:",
     "- " + commandWithArgs(harnessCommand("setup"), "--apply"),
     "- " + harnessCommand("pi"),
     "- " + harnessCommand("next"),
     "- " + harnessCommand("learn"),
+    "- " + commandWithArgs(harnessCommand("setup"), "--apply --alias " + aliasName),
+    "- " + commandWithArgs(pathFromRoot("bin", "pi-harness") + " checks", "detect --apply"),
+    "- " + pathFromRoot("bin", "pi-harness") + " done",
+    "",
+  ].join("\n");
+}
+
+function cheatsheetText() {
+  const reliable = {
+    setup: harnessCommand("setup"),
+    next: harnessCommand("next"),
+    check: harnessCommand("check"),
+    pi: harnessCommand("pi"),
+    done: pathFromRoot("bin", "pi-harness") + " done",
+    checks: pathFromRoot("bin", "pi-harness") + " checks",
+    longRun: pathFromRoot("bin", "pi-harness") + " run-long",
+  };
+  const shortPrefix = noAlias ? "" : [
+    "## Optional Short Alias",
+    "",
+    `Source the generated snippet when you want the short command:`,
+    "",
+    "```bash",
+    `source ${rel(aliasPath)}`,
+    "```",
+    "",
+    "Then use `" + aliasName + " next`, `" + aliasName + "`, `" + aliasName + " done`, and `" + aliasName + " checks run`.",
+    "",
+  ].join("\n");
+  return [
+    "# Pi Harness Day-Two Cheatsheet",
+    "",
+    "Use this from your project after setup/adoption.",
+    "",
+    shortPrefix,
+    "## Daily Loop",
+    "",
+    "```bash",
+    reliable.next,
+    reliable.check,
+    reliable.pi,
+    "```",
+    "",
+    "Inside Pi:",
+    "",
+    "```text",
+    "/harness-new small-real-task",
+    "Use the harness workflow: scope, implement, run checks, review if needed, then done.",
+    "```",
+    "",
+    "Finish from shell or inside Pi:",
+    "",
+    "```bash",
+    reliable.done,
+    "```",
+    "",
+    "## Project Checks",
+    "",
+    "```bash",
+    reliable.checks + " list",
+    reliable.checks + " run",
+    "```",
+    "",
+    "## Longer Work",
+    "",
+    "```bash",
+    reliable.longRun + " \"large migration goal\"",
+    pathFromRoot("bin", "pi-harness") + " resume-long <id>",
+    "```",
     "",
   ].join("\n");
 }

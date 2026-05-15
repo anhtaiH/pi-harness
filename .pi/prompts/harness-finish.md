@@ -2,23 +2,13 @@
 description: Finish a local harness task with evidence
 ---
 
-Finish the active harness task. Use `harness_write_evidence` with:
+Finish the active harness task with the done flow first:
 
-- Summary
-- Positive proof
-- Negative proof
-- Commands run
-- Skipped checks and residual risk
-- Diff risk notes
-- Memory candidates
+- Prefer `harness_done_task` (or `/harness-done` / `ph done` outside Pi).
+- It should run project checks, auto-plan risk-based review, write proof ledger entries, run evidence doctor/drafting, and finish gates.
+- If it reports findings, fix them before summarizing.
 
-Then use `harness_finish_task`. If it reports findings, fix them before summarizing.
-
-Before finishing, also run:
-
-- `harness_package_provenance`
-- `harness_run_evals`
-- `harness_writer_lock` with `action: "status"`
+If the done tool is unavailable, fall back to `harness_write_evidence` with summary, positive proof, negative proof, commands run, skipped checks/residual risk, diff risk notes, and memory candidates; then use `harness_finish_task`.
 
 Task:
 

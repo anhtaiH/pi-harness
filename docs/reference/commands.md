@@ -30,11 +30,18 @@ Local mode:
 
 ```bash
 /path/to/local/pi-harness/.../bin/pi-harness setup
+/path/to/local/pi-harness/.../bin/pi-harness setup --interactive
 /path/to/local/pi-harness/.../bin/pi-harness setup --apply --install --run-gates
 /path/to/local/pi-harness/.../bin/pi-harness bootstrap
 /path/to/local/pi-harness/.../bin/pi-harness learn
 /path/to/local/pi-harness/.../bin/pi-harness next
 /path/to/local/pi-harness/.../bin/pi-harness check --json
+/path/to/local/pi-harness/.../bin/pi-harness checks detect --apply --profile standard
+/path/to/local/pi-harness/.../bin/pi-harness checks run --profile quick
+/path/to/local/pi-harness/.../bin/pi-harness done
+/path/to/local/pi-harness/.../bin/pi-harness proof --task <taskId>
+/path/to/local/pi-harness/.../bin/pi-harness run-long "large migration"
+/path/to/local/pi-harness/.../bin/pi-harness run-long-checkpoint <id> --note "safe checkpoint"
 /path/to/local/pi-harness/.../bin/pi-harness ready --run-gates
 /path/to/local/pi-harness/.../bin/pi-harness gates
 ```
@@ -48,6 +55,9 @@ npm run harness:bootstrap
 npm run harness:learn
 npm run harness:next
 npm run harness:check -- --json
+npm run harness:checks -- detect --apply
+npm run harness:done
+npm run harness:long-run -- plan "large migration"
 npm run harness:ready -- --run-gates
 npm run gates
 ```
@@ -57,8 +67,17 @@ Machine-readable forms:
 ```bash
 node scripts/adopt-project.mjs --target /path/to/project --json
 node scripts/adopt-project.mjs --target /path/to/project --mode repo --json
-node scripts/setup-wizard.mjs --apply --json
+node scripts/setup-wizard.mjs --interactive
+node scripts/setup-wizard.mjs --apply --alias ph --json
+node scripts/setup-wizard.mjs --answers-json '{"apply":true,"alias":"ph","projectChecks":true}' --json
 node scripts/bootstrap.mjs --json
+node scripts/resolve-harness.mjs --cwd /path/to/project --json
+node scripts/project-checks.mjs detect --apply --profile standard --json
+node scripts/project-checks.mjs run --profile quick --json
+node scripts/done-task.mjs --task <taskId> --json
+node scripts/proof-ledger.mjs doctor --task <taskId> --json
+node scripts/long-run.mjs plan "large migration" --json
+node scripts/long-run.mjs checkpoint <id> --note "safe checkpoint" --json
 node scripts/harnessctl.mjs ready --run-gates --json
 node scripts/eval-runner.mjs --json
 ```
@@ -86,6 +105,8 @@ Inside Pi, use `/login`, `/model`, `/subagents-doctor`, and `/mcp setup` as need
 ## Tasks and evidence
 
 ```bash
+npm run harness:done -- --task <taskId> --json
+npm run harness:proof -- doctor --task <taskId> --json
 npm run task:doctor -- <taskId> --json
 npm run evidence:doctor -- <taskId> --json
 npm run finish -- <taskId> --json
@@ -96,6 +117,7 @@ Inside Pi, use:
 - `harness_status`
 - `harness_create_task`
 - `harness_record_progress`
+- `harness_done_task`
 - `harness_write_evidence`
 - `harness_finish_task`
 
@@ -124,6 +146,16 @@ npm run package:harness -- manifest --json
 npm run memory -- search --query "runtime policy"
 npm run memory -- doctor --json
 npm run memory -- prune --all --dry-run --json
+```
+
+## Project checks
+
+```bash
+npm run harness:checks -- detect --apply --profile standard --json
+npm run harness:checks -- list --json
+npm run harness:checks -- run --profile quick --json
+npm run harness:review-policy -- plan --task <taskId> --apply --json
+npm run harness:review-policy -- doctor --task <taskId> --json
 ```
 
 ## Review lanes

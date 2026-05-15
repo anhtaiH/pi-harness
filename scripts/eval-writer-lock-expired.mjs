@@ -1,8 +1,9 @@
-import { rmSync } from "node:fs";
+import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { pathFromRoot, writeJson } from "./lib/harness-state.mjs";
 
 const lockFile = pathFromRoot("state", "locks", "writer-lock.json");
+const originalLock = existsSync(lockFile) ? readFileSync(lockFile, "utf8") : null;
 let exitCode = 0;
 
 try {
@@ -21,7 +22,8 @@ try {
   console.log(JSON.stringify({ ok, status: result.status, stdout: result.stdout, stderr: result.stderr }, null, 2));
   exitCode = ok ? 0 : 1;
 } finally {
-  rmSync(lockFile, { force: true });
+  if (originalLock) writeFileSync(lockFile, originalLock, "utf8");
+  else rmSync(lockFile, { force: true });
 }
 
 process.exit(exitCode);

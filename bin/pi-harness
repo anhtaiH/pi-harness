@@ -1,7 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+CALLER_CWD="$PWD"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+if [[ "${PI_HARNESS_DISABLE_RESOLVE:-0}" != "1" && -f "$ROOT/scripts/resolve-harness.mjs" ]]; then
+  RESOLVED_HARNESS="$(node "$ROOT/scripts/resolve-harness.mjs" --cwd "$PWD" 2>/dev/null || true)"
+  if [[ -n "$RESOLVED_HARNESS" && "$RESOLVED_HARNESS" != "$ROOT" && -x "$RESOLVED_HARNESS/bin/pi-harness" ]]; then
+    export PI_HARNESS_DISABLE_RESOLVE=1
+    exec "$RESOLVED_HARNESS/bin/pi-harness" "$@"
+  fi
+fi
+
 HARNESS_ROOT="$ROOT"
 PROJECT_CONFIG="$HARNESS_ROOT/harness.project.json"
 PROJECT_ROOT_FROM_CONFIG=""
@@ -33,6 +43,11 @@ export PI_HARNESS_PROJECT_ROOT="$PROJECT_ROOT"
 export PI_CODING_AGENT_DIR="${PI_CODING_AGENT_DIR:-$HARNESS_ROOT/.pi-agent}"
 
 case "${1:-}" in
+  adopt)
+    shift
+    cd "$HARNESS_ROOT"
+    exec node scripts/adopt-project.mjs --target "$CALLER_CWD" "$@"
+    ;;
   setup)
     shift
     cd "$HARNESS_ROOT"
@@ -43,11 +58,42 @@ case "${1:-}" in
     cd "$HARNESS_ROOT"
     exec node scripts/bootstrap.mjs "$@"
     ;;
-  next|learn|check|ready)
+  next|learn|check|ready|done|checks|review-policy|proof|run-long|resume-long|long-run|run-long-heartbeat|run-long-checkpoint)
     COMMAND="$1"
     shift
     cd "$HARNESS_ROOT"
-    exec node scripts/harnessctl.mjs "$COMMAND" "$@"
+    case "$COMMAND" in
+      done)
+        exec node scripts/done-task.mjs "$@"
+        ;;
+      checks)
+        exec node scripts/project-checks.mjs "$@"
+        ;;
+      review-policy)
+        exec node scripts/review-policy.mjs "$@"
+        ;;
+      proof)
+        exec node scripts/proof-ledger.mjs "$@"
+        ;;
+      run-long)
+        exec node scripts/long-run.mjs plan "$@"
+        ;;
+      resume-long)
+        exec node scripts/long-run.mjs resume "$@"
+        ;;
+      long-run)
+        exec node scripts/long-run.mjs "$@"
+        ;;
+      run-long-heartbeat)
+        exec node scripts/long-run.mjs heartbeat "$@"
+        ;;
+      run-long-checkpoint)
+        exec node scripts/long-run.mjs checkpoint "$@"
+        ;;
+      *)
+        exec node scripts/harnessctl.mjs "$COMMAND" "$@"
+        ;;
+    esac
     ;;
   harness)
     shift

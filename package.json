@@ -4,7 +4,9 @@
   "type": "module",
   "packageManager": "pnpm@11.1.2",
   "bin": {
-    "pi-harness-adopt": "bin/pi-harness-adopt.mjs"
+    "pi-harness-adopt": "bin/pi-harness-adopt.mjs",
+    "pi-harness": "bin/pi-harness",
+    "ph": "bin/pi-harness"
   },
   "scripts": {
     "doctor": "node scripts/doctor.mjs",
@@ -20,6 +22,11 @@
     "harness:learn": "node scripts/harnessctl.mjs learn",
     "harness:next": "node scripts/harnessctl.mjs next",
     "harness:ready": "node scripts/harnessctl.mjs ready",
+    "harness:done": "node scripts/done-task.mjs",
+    "harness:checks": "node scripts/project-checks.mjs",
+    "harness:review-policy": "node scripts/review-policy.mjs",
+    "harness:proof": "node scripts/proof-ledger.mjs",
+    "harness:long-run": "node scripts/long-run.mjs",
     "harness:setup": "node scripts/setup-wizard.mjs",
     "memory": "node scripts/memory.mjs",
     "mcp:sandbox": "node scripts/mcp-sandbox.mjs",

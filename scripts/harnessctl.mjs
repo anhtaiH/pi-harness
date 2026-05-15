@@ -88,6 +88,7 @@ function fastChecks() {
     { id: "policy-profile", command: ["node", "scripts/policy-profile.mjs", "doctor", "--json"] },
     { id: "memory", command: ["node", "scripts/memory.mjs", "doctor", "--json"] },
     { id: "package-harness", command: ["node", "scripts/package-harness.mjs", "doctor", "--json"] },
+    { id: "project-checks", command: ["node", "scripts/project-checks.mjs", "doctor", "--json"] },
     { id: "package-approval", command: ["node", "scripts/package-approval.mjs", "doctor", "--json"] },
     { id: "mcp-sandbox", command: ["node", "scripts/mcp-sandbox.mjs", "doctor", "--json"] },
   ];
@@ -97,6 +98,7 @@ function readinessChecks() {
   return [
     { id: "package-provenance", command: ["node", "scripts/package-provenance.mjs", "check", "--json"] },
     { id: "tool-metadata", command: ["node", "scripts/tool-policy.mjs", "metadata", "--json"] },
+    { id: "long-run", command: ["node", "scripts/long-run.mjs", "doctor", "--json"] },
   ];
 }
 
@@ -196,8 +198,8 @@ function learningCard(status) {
       ...base,
       title: "You are inside the task loop",
       youAreHere: `Open task: ${openTask.id}`,
-      runNow: [harnessCommand("next"), harnessCommand("check"), "# when done: ask Pi to write evidence, then run the finish gate"],
-      practice: "Make one small change, run the smallest meaningful check, then write evidence while the details are fresh.",
+      runNow: [harnessCommand("next"), harnessCommand("check"), harnessCommand("done")],
+      practice: "Make one small change, run the smallest meaningful check, then use the done flow so evidence and finish gates happen before any completion claim.",
     };
   }
 
@@ -242,6 +244,10 @@ function adviceForCheck(id) {
       why: "Portability depends on shipping the files that define behavior, not private generated state.",
       try: "npm run package:harness -- doctor --json",
     },
+    "project-checks": {
+      why: "Project-specific lint/typecheck/test/build checks turn model claims into deterministic feedback.",
+      try: "npm run harness:checks -- detect --apply --json, then npm run harness:checks -- run --json",
+    },
     "package-approval": {
       why: "Powerful agent packages need visible human risk acceptance when automated review blocks them.",
       try: "npm run package:approval -- doctor --json",
@@ -257,6 +263,10 @@ function adviceForCheck(id) {
     "tool-metadata": {
       why: "Connectors need read-only vs write-like classification before policy can reason about them.",
       try: "npm run tool:policy -- metadata --json",
+    },
+    "long-run": {
+      why: "Long-running agent work needs durable plans, heartbeats, and resume prompts outside model context.",
+      try: "npm run harness:long-run -- doctor --json",
     },
     gates: {
       why: "Gates catch cross-cutting regressions before the harness claims it is ready.",

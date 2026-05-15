@@ -1,0 +1,14 @@
+{
+  "id": "polish-end-to-end-ux-flow",
+  "command": [
+    "node",
+    "scripts/eval-polish-ux.mjs"
+  ],
+  "expectExit": 0,
+  "stdoutIncludes": [
+    "\"ok\": true",
+    "setupAlias",
+    "proofCount"
+  ],
+  "timeoutMs": 120000
+}

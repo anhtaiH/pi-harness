@@ -30,6 +30,11 @@ export function harnessCommand(action = "pi") {
     learn: "npm run harness:learn",
     check: "npm run harness:check",
     ready: "npm run harness:ready",
+    done: "npm run harness:done",
+    checks: "npm run harness:checks",
+    "review-policy": "npm run harness:review-policy",
+    proof: "npm run harness:proof",
+    "long-run": "npm run harness:long-run",
     pi: "npm run pi",
     "pi:print": "npm run pi:print",
   };

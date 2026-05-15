@@ -22,7 +22,7 @@ const sidecarDir = adoptionMode === "repo"
 const localAgentDir = ".pi" + "-agent";
 
 if (resolve(targetRoot) === resolve(sourceRoot)) {
-  warnings.push("Target is this harness source checkout. Adoption is meant for an existing project repo; use README contributor setup here.");
+  warnings.push("Target is this harness source checkout. Project connection is meant for an existing project repo; use README contributor setup here.");
 }
 
 inspectTarget();
@@ -126,7 +126,7 @@ function planPackageJson() {
       title: "Leave project package.json unchanged",
       status: "skipped",
       applied: false,
-      why: "Local adoption should not require repo changes. Use the printed harness launcher commands instead.",
+      why: "Local project connection should not require repo changes. Use the printed harness launcher commands instead.",
     });
     return;
   }
@@ -149,6 +149,9 @@ function packageScripts() {
   if (adoptionMode === "repo") {
     return {
       "harness:setup": "node .pi-harness/scripts/setup-wizard.mjs",
+      "harness:start": "node .pi-harness/scripts/start-project.mjs",
+      "harness:more": "node .pi-harness/scripts/harness-more.mjs",
+      "harness:local-llm": "node .pi-harness/scripts/local-llm.mjs",
       "harness:next": "node .pi-harness/scripts/harnessctl.mjs next",
       "harness:learn": "node .pi-harness/scripts/harnessctl.mjs learn",
       "harness:check": "node .pi-harness/scripts/harnessctl.mjs check",
@@ -165,6 +168,9 @@ function packageScripts() {
   const launcher = shellQuote(join(sidecarDir, "bin", "pi-harness"));
   return {
     "harness:setup": `${launcher} setup`,
+    "harness:start": `${launcher} start`,
+    "harness:more": `${launcher} more`,
+    "harness:local-llm": `${launcher} local-llm`,
     "harness:next": `${launcher} next`,
     "harness:learn": `${launcher} learn`,
     "harness:check": `${launcher} check`,
@@ -273,24 +279,24 @@ function createStateDirs(root) {
 }
 
 function nextSteps() {
-  if (findings.length) return ["Fix blockers above, then rerun the adoption command."];
+  if (findings.length) return ["Fix blockers above, then rerun the project connection command."];
   const steps = [];
   const applyCommand = adoptionApplyCommand();
   const launcher = shellQuote(join(sidecarDir, "bin", "pi-harness"));
   const globalCommand = "ph";
-  if (!apply) steps.push("Apply adoption after reviewing the plan: `" + applyCommand + "`.");
+  if (!apply) steps.push("Apply project connection after reviewing the plan: `" + applyCommand + "`.");
   if (adoptionMode === "local") {
     steps.push("Install/check the local harness: `" + launcher + " setup --apply --install`.");
     steps.push("If `ph` is on PATH, the registry lets you run from this project: `" + globalCommand + " next`, `" + globalCommand + "`, `" + globalCommand + " done`.");
     steps.push("Start Pi in this project: `" + launcher + "`.");
     steps.push("Finish tasks with evidence/gates: `" + launcher + " done`.");
-    steps.push("When you intentionally need team/research batteries: `PI_HARNESS_ENABLE_PROJECT_PACKAGES=1 " + launcher + "`.");
+    steps.push("Need models, local LLMs, teams, research, memory, or task shaping? Use `" + launcher + " more` or type `/harness` inside Pi.");
     if (scriptsMode === "none") steps.push("Optional: rerun with `--scripts package-json` if you want npm scripts that point at this local harness.");
   } else {
     steps.push("Install/check the repo sidecar: `npm run harness:setup -- --apply --install`.");
     steps.push("Start Pi from your project: `npm run pi`.");
     steps.push("Finish tasks with evidence/gates: `npm run harness:done`.");
-    steps.push("When you intentionally need team/research batteries: `PI_HARNESS_ENABLE_PROJECT_PACKAGES=1 npm run pi`.");
+    steps.push("Need models, local LLMs, teams, research, memory, or task shaping? Use `npm run harness -- more` or type `/harness` inside Pi.");
   }
   return steps;
 }
@@ -335,8 +341,8 @@ function readJsonIfExists(path) {
 }
 
 function printHuman(result) {
-  console.log("Pi Harness Project Adoption");
-  console.log("===========================");
+  console.log("Pi Harness Project Connection");
+  console.log("=============================");
   console.log("Mode: " + (apply ? "apply" : "plan") + " / " + adoptionMode + " harness");
   console.log("Project: " + targetRoot);
   console.log("Harness: " + sidecarDir);

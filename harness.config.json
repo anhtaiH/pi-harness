@@ -9,6 +9,12 @@
     "externalWritesRequireIntent": true,
     "evidenceBeforeDone": true
   },
+  "ui": {
+    "statusline": {
+      "enabled": true,
+      "segments": ["project", "task", "lock", "checks", "memory", "capabilities", "model", "next"]
+    }
+  },
   "reviewPolicy": {
     "requiredByRisk": {
       "green": "none",

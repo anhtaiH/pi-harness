@@ -1,0 +1,7 @@
+{
+  "id": "human-first-ux-polish",
+  "command": ["node", "scripts/eval-human-first-ux.mjs"],
+  "expectExit": 0,
+  "stdoutIncludes": ["\"ok\": true", "local-llm", "memory", "statusline"],
+  "timeoutMs": 150000
+}

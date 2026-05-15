@@ -111,6 +111,38 @@ if (command === "list") {
   output({ ok: true, entries, findings: [] }, "memory list");
 }
 
+if (command === "review") {
+  const limit = Number(parseFlag(args, "--limit", "12")) || 12;
+  const state = readEntries();
+  const entries = state.entries.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+  const stale = entries.filter(isExpired);
+  const duplicates = duplicateEntries(entries);
+  const recent = entries.slice(0, limit);
+  const recommendations = [];
+  if (stale.length) recommendations.push("Review stale entries, then prune only after confirming they are no longer useful.");
+  if (duplicates.length) recommendations.push("Review duplicate entries, then prune duplicates with a dry run first.");
+  if (!stale.length && !duplicates.length) recommendations.push("Memory looks tidy. Save new memories only when they are sourced, scoped, confidence-rated, and reusable.");
+  output({ ok: state.parseFindings.length === 0, count: entries.length, stale, duplicates, recent, recommendations, findings: state.parseFindings }, "memory review");
+}
+
+if (command === "forget") {
+  const id = parseFlag(args, "--id", args[1] || "");
+  const reason = parseFlag(args, "--reason", "manual memory review");
+  const dryRun = hasFlag(args, "--dry-run");
+  if (!id) printResult({ ok: false, findings: ["missing memory id; use memory forget <id> or --id <id>"] }, json, "memory forget");
+  if (looksLikeSecretText(reason)) printResult({ ok: false, findings: ["forget reason contains secret-like text"] }, json, "memory forget");
+  const state = readEntries();
+  const target = state.entries.find((entry) => entry.id === id);
+  if (!target) printResult({ ok: false, id, findings: ["memory id not found: " + id] }, json, "memory forget");
+  const keep = state.entries.filter((entry) => entry.id !== id);
+  const removal = { id, removedAt: nowIso(), reason, dryRun, text: target.text, source: target.source, scope: target.scope, confidence: target.confidence };
+  if (!dryRun) {
+    writeEntries(keep);
+    appendJsonl(pathFromRoot("state", "memory", "forget-log.jsonl"), removal);
+  }
+  output({ ok: true, dryRun, removed: removal, kept: keep.length, findings: state.parseFindings }, "memory forget");
+}
+
 if (command === "prune") {
   const dryRun = hasFlag(args, "--dry-run");
   const pruneStale = hasFlag(args, "--stale") || hasFlag(args, "--all") || !hasFlag(args, "--duplicates");
@@ -133,7 +165,7 @@ if (command === "doctor") {
   output({ ok: findings.length === 0, count: entries.length, stale, duplicates, findings }, "memory doctor");
 }
 
-console.error("usage: node scripts/memory.mjs add|import|search|list|prune|doctor [--json] [...]");
+console.error("usage: node scripts/memory.mjs add|import|search|list|review|forget|prune|doctor [--json] [...]");
 process.exit(2);
 
 function buildEntry({ kind, text, source, scope, confidence, tags, taskId, expiresAt }) {
@@ -343,7 +375,13 @@ function output(result, label) {
   if (!result.ok) printResult(result, json, label);
   if (result.entry) console.log(`${label}: ${result.entry.id}`);
   else if (result.imported) console.log(`${label}: ${result.imported.length} imported${result.dryRun ? " (dry-run)" : ""}`);
-  else if (result.removed) console.log(`${label}: ${result.removed.length} removed${result.dryRun ? " (dry-run)" : ""}`);
+  else if (Array.isArray(result.removed)) console.log(`${label}: ${result.removed.length} removed${result.dryRun ? " (dry-run)" : ""}`);
+  else if (result.removed) console.log(`${label}: ${result.removed.id} removed${result.dryRun ? " (dry-run)" : ""}`);
+  else if (result.recent) {
+    console.log(`ok   ${label}: ${result.count} entries`);
+    for (const item of result.recent) console.log(`${item.id} [${item.kind}/${item.confidence}] ${item.text}`);
+    if (result.recommendations?.length) console.log("Next: " + result.recommendations.join(" "));
+  }
   else if (result.entries) console.log(result.entries.map((entry) => `${entry.id} [${entry.kind}] ${entry.text}`).join("\n") || "No memory entries.");
   else console.log(`ok   ${label}: ${result.count ?? ""}`.trim());
   process.exit(0);

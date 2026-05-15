@@ -190,9 +190,9 @@ function computeNextSteps() {
   else if (warnings.some((warning) => warning.includes("Pi CLI"))) steps.push("Install or vendor the Pi CLI before live sessions.");
   if (!runGates) steps.push("Run full readiness before rollout: `npm run harness:ready -- --run-gates`.");
   steps.push("For guided setup, run: `" + commandWithArgs(harnessCommand("setup"), "--apply") + "`.");
-  steps.push("Model, team, and research batteries are explained inside the setup wizard.");
+  steps.push("Models, local LLMs, team, research, memory, and task shaping are available through `" + commandWithArgs(harnessCommand("pi"), "more") + "` and `/harness`.");
   steps.push("Start the isolated agent: `" + harnessCommand("pi") + "`.");
-  steps.push("For an existing project, run the public adoption flow from that project root: `pi-harness-adopt`.");
+  steps.push("For an existing project, run the one-line start flow from that project root: `curl -fsSL https://raw.githubusercontent.com/anhtaiH/pi-harness/main/bin/install | bash`.");
   return steps;
 }
 

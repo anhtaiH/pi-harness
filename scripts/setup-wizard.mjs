@@ -374,9 +374,9 @@ function nextSteps() {
   if (!apply) steps.push("Apply safe local setup: `" + commandWithArgs(setupCommand, "--apply") + "`.");
   if (apply && !noAlias) steps.push("Optional short command: `source " + rel(aliasPath) + "`, then use `" + aliasName + " next`, `" + aliasName + "`, and `" + aliasName + " done`.");
   if (apply && !runGates) steps.push("For full confidence: `" + commandWithArgs(setupCommand, "--apply --run-gates --allow-open-tasks") + "`.");
-  if (apply) steps.push("Inspect the day-two cheatsheet: " + rel(cheatsheetPath) + ".");
-  if (apply) steps.push("Inspect the generated Pi prompt: " + rel(promptPath) + ".");
-  if (apply) steps.push("Start Pi with `" + harnessCommand("pi") + "` and hand it the generated prompt.");
+  if (apply) steps.push("Start Pi with `" + harnessCommand("pi") + "`, then type `/harness` whenever you are unsure what is possible.");
+  if (apply) steps.push("Need models, local LLMs, team/research tools, memory, or task shaping? Run `" + pathFromRoot("bin", "pi-harness") + " more` or use `/harness` inside Pi.");
+  if (apply) steps.push("Optional reference artifacts were written to " + rel(cheatsheetPath) + " and " + rel(promptPath) + "; you do not need to memorize those paths.");
   steps.push("Use `" + harnessCommand("next") + "` when you are unsure what to do next.");
   return steps;
 }
@@ -386,7 +386,7 @@ function promptText() {
     "You are Pi running inside this harness. Continue setup as an agent-driven, transparent wizard.",
     "",
     "Goal:",
-    "- Make the harness easier to adopt by automating safe boilerplate and explaining each action.",
+    "- Make the harness easier to start by automating safe boilerplate and explaining each action.",
     "",
     "Rules:",
     "- Keep project changes explicit; local-sidecar mode should not write to the project unless the human asks.",
@@ -394,11 +394,11 @@ function promptText() {
     "",
     "Start here:",
     "1. Call harness_status.",
-    "2. Inspect state/setup/latest.json and state/setup/agent-prompt.md if they exist.",
-    "3. If there is no active task, create one for the next setup improvement.",
+    "2. Do not ask the human to remember state/setup paths; use /harness, /harness-models, /harness-local-llm, /harness-team, /harness-research, /harness-memory, and /harness-brief as the front door.",
+    "3. If there is no active task and the human's request is vague, use /harness-brief style questions before implementation.",
     "4. Explain the plan as inspect, apply, verify, hand off.",
     "5. Automate safe local boilerplate instead of asking the human to copy commands.",
-    "6. Show commands and artifacts so the human can watch what happened.",
+    "6. Show commands and artifacts so the human can watch what happened, but keep paths as reference material, not the interface.",
     "7. Use the done flow before claiming completion: run project checks, review policy, evidence doctor, and finish gates.",
     "",
     "Useful commands:",
@@ -406,6 +406,11 @@ function promptText() {
     "- " + harnessCommand("pi"),
     "- " + harnessCommand("next"),
     "- " + harnessCommand("learn"),
+    "- " + pathFromRoot("bin", "pi-harness") + " more",
+    "- " + pathFromRoot("bin", "pi-harness") + " models",
+    "- " + pathFromRoot("bin", "pi-harness") + " local-llm",
+    "- " + pathFromRoot("bin", "pi-harness") + " team",
+    "- " + pathFromRoot("bin", "pi-harness") + " research",
     "- " + commandWithArgs(harnessCommand("setup"), "--apply --alias " + aliasName),
     "- " + commandWithArgs(pathFromRoot("bin", "pi-harness") + " checks", "detect --apply"),
     "- " + pathFromRoot("bin", "pi-harness") + " done",
@@ -438,7 +443,7 @@ function cheatsheetText() {
   return [
     "# Pi Harness Day-Two Cheatsheet",
     "",
-    "Use this from your project after setup/adoption.",
+    "Use this from your project after setup. The front door inside Pi is `/harness`.",
     "",
     shortPrefix,
     "## Daily Loop",
@@ -452,7 +457,8 @@ function cheatsheetText() {
     "Inside Pi:",
     "",
     "```text",
-    "/harness-new small-real-task",
+    "/harness",
+    "/harness-brief   # when the task is fuzzy and you want Pi to grill you into a good packet",
     "Use the harness workflow: scope, implement, run checks, review if needed, then done.",
     "```",
     "",
@@ -461,6 +467,18 @@ function cheatsheetText() {
     "```bash",
     reliable.done,
     "```",
+    "",
+    "## More Help Without Remembering Flags",
+    "",
+    "```bash",
+    pathFromRoot("bin", "pi-harness") + " more",
+    pathFromRoot("bin", "pi-harness") + " models       # opens Pi with /login + /model guidance",
+    pathFromRoot("bin", "pi-harness") + " local-llm    # Ollama / LM Studio guidance",
+    pathFromRoot("bin", "pi-harness") + " team         # opens Pi with team tools available",
+    pathFromRoot("bin", "pi-harness") + " research     # opens Pi with research/MCP tools available",
+    "```",
+    "",
+    "Inside Pi, `/harness` is the escape hatch for all of these.",
     "",
     "## Project Checks",
     "",

@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# One-line installer for humans:
+#   curl -fsSL https://raw.githubusercontent.com/anhtaiH/pi-harness/main/bin/install | bash
+#
+# It keeps the harness outside the current project by default, then runs the
+# friendly start flow. Advanced users can pass args through bash:
+#   curl -fsSL .../bin/install | bash -s -- --no-install
+
+REPO_URL="${PI_HARNESS_REPO_URL:-https://github.com/anhtaiH/pi-harness.git}"
+BRANCH="${PI_HARNESS_BRANCH:-main}"
+CALLER_CWD="$PWD"
+
+if ! command -v git >/dev/null 2>&1; then
+  echo "Pi Harness needs git for the one-line installer." >&2
+  echo "Install git, then rerun this command." >&2
+  exit 1
+fi
+
+if ! command -v node >/dev/null 2>&1; then
+  echo "Pi Harness needs Node.js 20+ for setup." >&2
+  echo "Install Node.js, then rerun this command." >&2
+  exit 1
+fi
+
+case "$(uname -s 2>/dev/null || echo unknown)" in
+  Darwin)
+    DEFAULT_HOME="$HOME/Library/Application Support/pi-harness"
+    ;;
+  *)
+    DEFAULT_HOME="${XDG_DATA_HOME:-$HOME/.local/share}/pi-harness"
+    ;;
+esac
+
+HARNESS_HOME="${PI_HARNESS_HOME:-$DEFAULT_HOME}"
+SOURCE_DIR="${PI_HARNESS_SOURCE_DIR:-$HARNESS_HOME/source}"
+
+mkdir -p "$(dirname "$SOURCE_DIR")"
+
+if [[ -d "$SOURCE_DIR/.git" ]]; then
+  echo "Updating Pi Harness at $SOURCE_DIR"
+  git -C "$SOURCE_DIR" fetch --depth 1 origin "$BRANCH"
+  if ! git -C "$SOURCE_DIR" merge --ff-only -q FETCH_HEAD; then
+    echo "Could not fast-forward the existing harness source at $SOURCE_DIR." >&2
+    echo "Move that directory aside, commit/stash local edits, or set PI_HARNESS_SOURCE_DIR to a fresh location." >&2
+    exit 1
+  fi
+elif [[ -e "$SOURCE_DIR" ]]; then
+  echo "Cannot install into existing non-git path: $SOURCE_DIR" >&2
+  echo "Move it aside or set PI_HARNESS_SOURCE_DIR to another location." >&2
+  exit 1
+else
+  echo "Installing Pi Harness into $SOURCE_DIR"
+  git clone --depth 1 --branch "$BRANCH" "$REPO_URL" "$SOURCE_DIR"
+fi
+
+cd "$CALLER_CWD"
+exec "$SOURCE_DIR/bin/pi-harness" start "$@"

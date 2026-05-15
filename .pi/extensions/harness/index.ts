@@ -1,6 +1,7 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { join, relative, resolve } from "node:path";
+import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
 
 type Risk = "green" | "yellow" | "red";
@@ -32,8 +33,25 @@ export default function harnessExtension(pi: any) {
 
   pi.on("session_start", async (_event: unknown, ctx: any) => {
     ensureDirs();
+    await maybeRegisterLocalLlmProviders(pi, ctx, process.env.PI_HARNESS_LOCAL_LLM === "1");
+    refreshHarnessUi(ctx, { installFooter: true });
     const activeTask = readActiveTaskId();
-    ctx.ui.notify(`Pi harness lab loaded. Use /harness-status or harness_status.${activeTask ? ` Active task: ${activeTask}.` : ""}`, "info");
+    ctx.ui.notify(`Pi harness loaded. Type /harness for tasks, models, local LLMs, team/research tools, memory, and next steps.${activeTask ? ` Active task: ${activeTask}.` : ""}`, "info");
+    presentAssistIfRequested(ctx);
+  });
+
+  pi.on("turn_end", async (_event: unknown, ctx: any) => {
+    refreshHarnessUi(ctx, { installFooter: false });
+  });
+
+  pi.on("model_select", async (_event: unknown, ctx: any) => {
+    refreshHarnessUi(ctx, { installFooter: false });
+  });
+
+  pi.on("before_agent_start", async (event: any) => {
+    return {
+      systemPrompt: `${event.systemPrompt}\n\nHarness human-first guidance:\n- If the human asks about setup, models, login, local LLMs, subagents, research, MCP, memory, status, or shaping a vague task, do not make them remember internal state/setup paths. Use the harness slash commands (/harness, /harness-models, /harness-local-llm, /harness-team, /harness-research, /harness-memory, /harness-brief) or the harness tools directly.\n- If optional team/research packages are needed, explain the simple launcher command (ph team or ph research), not PI_HARNESS_ENABLE_PROJECT_PACKAGES.\n- Treat persistent memory as opt-in: propose candidates with source/scope/confidence/expiry and make forgetting easy.\n- Use local LLMs only for low-risk scouting, summaries, docs cleanup, and check triage unless the human explicitly accepts the risk.`,
+    };
   });
 
   installRuntimePolicyGate(pi);
@@ -41,7 +59,71 @@ export default function harnessExtension(pi: any) {
   pi.registerCommand("harness-status", {
     description: "Show local harness task status",
     handler: async (_args: string, ctx: any) => {
+      refreshHarnessUi(ctx, { installFooter: true });
       ctx.ui.notify(statusText(), "info");
+    },
+  });
+
+  pi.registerCommand("harness", {
+    description: "Open the Pi Harness command center",
+    handler: async (_args: string, ctx: any) => {
+      await openHarnessCommandCenter(pi, ctx);
+    },
+  });
+
+  pi.registerCommand("harness-more", {
+    description: "Show plain-language harness capabilities",
+    handler: async (args: string, ctx: any) => {
+      showHarnessMore(args, ctx);
+    },
+  });
+
+  pi.registerCommand("harness-models", {
+    description: "Guide model login and model selection",
+    handler: async (_args: string, ctx: any) => {
+      showCapabilityHelp(ctx, "models");
+    },
+  });
+
+  pi.registerCommand("harness-team", {
+    description: "Guide subagent/team setup without env-var memorization",
+    handler: async (_args: string, ctx: any) => {
+      showCapabilityHelp(ctx, "team");
+    },
+  });
+
+  pi.registerCommand("harness-research", {
+    description: "Guide research/web/MCP setup without env-var memorization",
+    handler: async (_args: string, ctx: any) => {
+      showCapabilityHelp(ctx, "research");
+    },
+  });
+
+  pi.registerCommand("harness-local-llm", {
+    description: "Detect and register Ollama/LM Studio local models",
+    handler: async (_args: string, ctx: any) => {
+      await maybeRegisterLocalLlmProviders(pi, ctx, true);
+    },
+  });
+
+  pi.registerCommand("harness-memory", {
+    description: "Review, search, forget, and prune harness memory",
+    handler: async (_args: string, ctx: any) => {
+      showMemoryReview(ctx);
+    },
+  });
+
+  pi.registerCommand("harness-brief", {
+    description: "Ask a few questions and create a scoped task packet",
+    handler: async (args: string, ctx: any) => {
+      await runBriefBuilder(args, ctx);
+    },
+  });
+
+  pi.registerCommand("harness-statusline", {
+    description: "Show, refresh, enable, or disable the harness statusline/footer",
+    handler: async (args: string, ctx: any) => {
+      configureStatusline(args, ctx);
     },
   });
 
@@ -526,6 +608,27 @@ export default function harnessExtension(pi: any) {
       if (params.stale) args.push("--stale");
       if (params.duplicates) args.push("--duplicates");
       if (params.all) args.push("--all");
+      const result = runJsonScript("memory.mjs", args);
+      return textResult(JSON.stringify(result, null, 2), result);
+    },
+  });
+
+  pi.registerTool({
+    name: "harness_memory_forget",
+    label: "Harness Memory Forget",
+    description: "Forget a specific local harness memory entry by id and record a non-secret reason.",
+    parameters: Type.Object({
+      id: Type.String({ description: "Memory id, for example mem-20260515175709-11cd79e9." }),
+      reason: Type.Optional(Type.String({ description: "Non-secret reason for forgetting this memory." })),
+      dryRun: Type.Optional(Type.Boolean({ description: "Preview removal without writing." })),
+    }),
+    promptSnippet: "harness_memory_forget removes a specific memory entry by id with a non-secret reason.",
+    promptGuidelines: [
+      "Use harness_memory_forget when a memory is stale, wrong, overbroad, or unwanted; prefer dryRun first unless the human explicitly asks to forget it.",
+    ],
+    async execute(_toolCallId: string, params: { id: string; reason?: string; dryRun?: boolean }) {
+      const args = ["forget", params.id, "--reason", params.reason || "manual review", "--json"];
+      if (params.dryRun) args.push("--dry-run");
       const result = runJsonScript("memory.mjs", args);
       return textResult(JSON.stringify(result, null, 2), result);
     },
@@ -1152,7 +1255,7 @@ function writeToolPolicyAudit(entry: Record<string, unknown>) {
   appendFileSync(join(rootDir(), "state", "policy", "tool-policy-audit.jsonl"), `${JSON.stringify(entry)}\n`, "utf8");
 }
 
-function readJsonFile(path: string, fallback: unknown): unknown {
+function readJsonFile(path: string, fallback: any): any {
   if (!existsSync(path)) return fallback;
   try {
     return JSON.parse(readFileSync(path, "utf8"));
@@ -1176,6 +1279,357 @@ function truncate(text: string, max: number): string {
   return text.length > max ? `${text.slice(0, max)}…` : text;
 }
 
+function refreshHarnessUi(ctx: any, options: { installFooter: boolean }) {
+  if (!ctx?.ui) return;
+  try {
+    execFileSync(process.execPath, [join(rootDir(), "scripts", "status.mjs"), "--json"], {
+      cwd: rootDir(),
+      encoding: "utf8",
+      stdio: ["ignore", "ignore", "ignore"],
+      timeout: 15_000,
+    });
+  } catch {
+    // Statusline should never block the main Pi session.
+  }
+  const status = readStatusSnapshot();
+  try {
+    ctx.ui.setStatus("harness", compactHarnessStatus(status, ctx));
+    if (options.installFooter) {
+      if (statuslineEnabled()) ctx.ui.setFooter((tui: any, theme: any, footerData: any) => harnessFooter(ctx, theme, footerData));
+      else ctx.ui.setFooter(undefined);
+    }
+  } catch {
+    // UI APIs are best-effort in non-interactive modes.
+  }
+}
+
+function harnessFooter(ctx: any, theme: any, footerData: any) {
+  const unsub = footerData?.onBranchChange ? footerData.onBranchChange(() => undefined) : undefined;
+  return {
+    dispose: typeof unsub === "function" ? unsub : undefined,
+    invalidate() {},
+    render(width: number): string[] {
+      const status = readStatusSnapshot();
+      const activeTask = status?.activeTask?.taskId || "none";
+      const openTask = (status?.tasks || []).find((task: any) => !["done", "blocked"].includes(task.status));
+      const task = activeTask !== "none" ? activeTask : openTask?.id || "none";
+      const taskRisk = openTask?.risk ? `/${openTask.risk}` : "";
+      const lock = status?.writerLock?.active ? "lock:active" : "lock:free";
+      const evalText = status?.latestEval ? (status.latestEval.ok ? `eval:${status.latestEval.caseCount || 0}✓` : "eval:fail") : "eval:—";
+      const memory = status?.memory?.stale || status?.memory?.duplicates?.length ? "mem:review" : `mem:${status?.memory?.count ?? 0}`;
+      const caps = capabilityModeLabel();
+      const branch = footerData?.getGitBranch?.() || "";
+      const model = ctx?.model?.id || "no-model";
+      const left = ["π", shortProjectName(), `task:${shortId(task)}${taskRisk}`, lock, evalText, memory, `caps:${caps}`].join(" ");
+      const right = [model, branch ? `git:${branch}` : "", "try:/harness"].filter(Boolean).join(" ");
+      const styledLeft = theme.fg(status?.health?.ok ? "success" : "warning", left);
+      const styledRight = theme.fg("dim", right);
+      const gap = " ".repeat(Math.max(1, width - visibleWidth(styledLeft) - visibleWidth(styledRight)));
+      return [truncateToWidth(styledLeft + gap + styledRight, width)];
+    },
+  };
+}
+
+function compactHarnessStatus(status: any, ctx: any): string {
+  const open = status?.health?.openTasks ?? 0;
+  const lock = status?.writerLock?.active ? "lock active" : "lock free";
+  const model = ctx?.model?.id || "no model";
+  const caps = capabilityModeLabel();
+  return `π ${open} open · ${lock} · ${caps} · ${model} · /harness`;
+}
+
+function configureStatusline(args: string, ctx: any) {
+  const command = args.trim().toLowerCase();
+  if (["off", "disable", "hide"].includes(command)) {
+    writeJson(statuslineStatePath(), { enabled: false, updatedAt: new Date().toISOString() });
+    ctx.ui.setFooter(undefined);
+    ctx.ui.notify("Harness statusline disabled for this sidecar. Use /harness-statusline on to restore it.", "info");
+    return;
+  }
+  if (["on", "enable", "show"].includes(command)) {
+    writeJson(statuslineStatePath(), { enabled: true, updatedAt: new Date().toISOString() });
+    refreshHarnessUi(ctx, { installFooter: true });
+    ctx.ui.notify("Harness statusline enabled.", "success");
+    return;
+  }
+  refreshHarnessUi(ctx, { installFooter: true });
+  ctx.ui.notify("Harness statusline shows task, lock, checks/evals, memory, capability mode, model, and /harness. Use /harness-statusline off to hide it.", "info");
+}
+
+function statuslineEnabled(): boolean {
+  if (process.env.PI_HARNESS_STATUSLINE === "0") return false;
+  const state = readJsonFile(statuslineStatePath(), {} as any);
+  if (state?.enabled === false) return false;
+  const config = readJsonFile(join(rootDir(), "harness.config.json"), {} as any);
+  if (config?.ui?.statusline?.enabled === false) return false;
+  return true;
+}
+
+function statuslineStatePath(): string {
+  return join(rootDir(), "state", "setup", "statusline.json");
+}
+
+function readStatusSnapshot(): any {
+  return readJsonFile(join(rootDir(), "state", "status", "latest.json"), null);
+}
+
+function shortProjectName(): string {
+  const metadata = readJsonFile(join(rootDir(), "harness.project.json"), null);
+  const projectRoot = metadata?.projectRoot || process.env.PI_HARNESS_PROJECT_ROOT || rootDir();
+  return projectRoot.split(/[\\/]/).filter(Boolean).pop() || "project";
+}
+
+function shortId(value: string): string {
+  if (!value || value === "none") return "none";
+  const parts = value.split("-");
+  if (parts.length <= 2) return value;
+  return `${parts.slice(0, 2).join("-")}…${parts[parts.length - 1]}`;
+}
+
+function capabilityModeLabel(): string {
+  const assist = process.env.PI_HARNESS_ASSIST || "";
+  if (process.env.PI_HARNESS_LOCAL_LLM === "1" || assist === "local-llm") return "local";
+  if (assist === "team") return "team";
+  if (assist === "research") return "research";
+  if (process.env.PI_HARNESS_ENABLE_PROJECT_PACKAGES === "1") return "tools";
+  return "base";
+}
+
+async function openHarnessCommandCenter(pi: any, ctx: any) {
+  const options = [
+    { label: "Shape a vague task", value: "brief" },
+    { label: "Finish current task", value: "done" },
+    { label: "Models, login, and /model", value: "models" },
+    { label: "Local LLMs (Ollama / LM Studio)", value: "local-llm" },
+    { label: "Team / subagents", value: "team" },
+    { label: "Research / web / MCP", value: "research" },
+    { label: "Memory review / forget", value: "memory" },
+    { label: "Statusline / footer", value: "statusline" },
+    { label: "Show everything the harness can do", value: "more" },
+  ];
+  if (!ctx.hasUI) {
+    ctx.ui.notify(commandCenterText(), "info");
+    return;
+  }
+  const picked = await ctx.ui.select("Pi Harness — what do you need?", options.map((item) => item.label));
+  const choice = options.find((item) => item.label === picked)?.value;
+  if (!choice) return;
+  if (choice === "brief") return runBriefBuilder("", ctx);
+  if (choice === "done") return runDoneFromCommand(ctx);
+  if (choice === "models") return showCapabilityHelp(ctx, "models");
+  if (choice === "local-llm") return maybeRegisterLocalLlmProviders(pi, ctx, true);
+  if (choice === "team") return showCapabilityHelp(ctx, "team");
+  if (choice === "research") return showCapabilityHelp(ctx, "research");
+  if (choice === "memory") return showMemoryReview(ctx);
+  if (choice === "statusline") return configureStatusline("", ctx);
+  return showHarnessMore("", ctx);
+}
+
+function commandCenterText(): string {
+  return [
+    "Pi Harness command center:",
+    "- /harness-brief: shape a vague task",
+    "- /harness-models: login/model help",
+    "- /harness-local-llm: Ollama/LM Studio",
+    "- /harness-team: subagents/team",
+    "- /harness-research: web/MCP/research",
+    "- /harness-memory: review/forget memory",
+    "- /harness-done: finish safely",
+  ].join("\n");
+}
+
+function showHarnessMore(args: string, ctx: any) {
+  const topic = args.trim();
+  const scriptArgs = topic ? [topic, "--json"] : ["--json"];
+  const result = runJsonScript("harness-more.mjs", scriptArgs);
+  const text = (result.cards || []).map((card: any) => `${card.title}\n${card.summary}\nTry: ${(card.try || []).join(" | ")}\nInside Pi: ${(card.insidePi || []).join(" | ")}`).join("\n\n");
+  ctx.ui.notify(text || "Run /harness for the command center.", "info");
+}
+
+function showCapabilityHelp(ctx: any, topic: "models" | "team" | "research") {
+  if (topic === "models") {
+    ctx.ui.notify("Models are set up through Pi, not by reading secret files. Run /login, choose a provider, then /model. I can help compare options without seeing credentials.", "info");
+    ctx.ui.setEditorText("Help me choose a good default model for this project. Walk me through /login and /model, and do not read or print secrets.");
+    return;
+  }
+  if (topic === "team") {
+    const loaded = process.env.PI_HARNESS_ENABLE_PROJECT_PACKAGES === "1";
+    ctx.ui.notify(loaded ? "Team packages are available in this session. Start with /subagents-doctor, then ask for scout -> planner -> worker -> reviewer." : "Team tools are one command away. Exit Pi and run `ph team`; the launcher handles the safe package mode for you.", loaded ? "success" : "info");
+    ctx.ui.setEditorText(loaded ? "Run subagent diagnostics, list available agents, and propose a safe scout -> planner -> worker -> reviewer plan for my task." : "I want to use subagents/team review. Tell me to restart with `ph team`, then guide me safely.");
+    return;
+  }
+  const loaded = process.env.PI_HARNESS_ENABLE_PROJECT_PACKAGES === "1";
+  ctx.ui.notify(loaded ? "Research/MCP packages are available in this session. Use /mcp setup and prefer read-only, source-cited research first." : "Research tools are one command away. Exit Pi and run `ph research`; the launcher handles the safe package mode for you.", loaded ? "success" : "info");
+  ctx.ui.setEditorText(loaded ? "Help me set up read-only research/MCP for source-cited documentation lookup. Keep external writes gated." : "I want web/docs/MCP research. Tell me to restart with `ph research`, then guide me safely.");
+}
+
+function runDoneFromCommand(ctx: any) {
+  const result = runJsonScript("done-task.mjs", ["--json"]);
+  if (result.ok && result.taskId) clearActiveTask(result.taskId);
+  ctx.ui.notify(result.ok ? `Done ${result.taskId}` : `Done blocked\n${(result.findings || []).join("\n")}`, result.ok ? "success" : "error");
+}
+
+function showMemoryReview(ctx: any) {
+  const result = runJsonScript("memory.mjs", ["review", "--json"]);
+  const lines = [
+    `Memory entries: ${result.count || 0}`,
+    `Stale: ${(result.stale || []).length}`,
+    `Duplicates: ${(result.duplicates || []).length}`,
+    "",
+    "Recent:",
+    ...(result.recent || []).slice(0, 8).map((entry: any) => `- ${entry.id} [${entry.kind}/${entry.confidence}] ${entry.text}`),
+    "",
+    "To forget one: ask me naturally, or use harness_memory_forget / `ph memory forget <id> --reason ...`.",
+  ];
+  ctx.ui.notify(lines.join("\n"), result.ok ? "info" : "warning");
+}
+
+async function runBriefBuilder(args: string, ctx: any) {
+  const initial = args.trim();
+  if (!ctx.hasUI) {
+    const title = initial || "Scoped task";
+    const task = createTask({ title, goal: title, risk: "yellow" });
+    setActiveTask(task.id, "harness-brief");
+    ctx.ui.notify(`Created ${task.id}. Edit ${relative(rootDir(), task.paths.packet)} with scope and verification.`, "info");
+    return;
+  }
+  const outcome = (await ctx.ui.input("What outcome do you want?", initial || "e.g. make setup one-command")) || initial || "Scoped task";
+  const inScope = (await ctx.ui.input("What is in scope?", "smallest useful change")) || "smallest useful change";
+  const outOfScope = (await ctx.ui.input("What should not change?", "credentials, unrelated files, production systems")) || "credentials, unrelated files, production systems";
+  const verify = (await ctx.ui.input("How should we prove it worked?", "one focused command or inspection")) || "one focused command or inspection";
+  const riskChoice = await ctx.ui.select("Risk level?", ["green — docs/tiny local", "yellow — code or workflow", "red — prod/security/external"]);
+  const risk: Risk = riskChoice?.startsWith("red") ? "red" : riskChoice?.startsWith("green") ? "green" : "yellow";
+  const title = outcome.split(/\s+/).slice(0, 8).join(" ");
+  const task = createTask({ title, goal: outcome, risk });
+  writeFileSync(task.paths.packet, briefPacketMarkdown(task, { inScope, outOfScope, verify }), "utf8");
+  setActiveTask(task.id, "harness-brief");
+  ctx.ui.notify(`Created scoped task ${task.id}\n${relative(rootDir(), task.paths.packet)}`, "success");
+  ctx.ui.setEditorText(`/skill:harness implement ${task.id}: confirm scope, make the smallest safe change, run checks, write evidence, and finish.`);
+}
+
+function briefPacketMarkdown(task: TaskRecord, brief: { inScope: string; outOfScope: string; verify: string }): string {
+  return [
+    `# Task Packet: ${task.id}`,
+    "",
+    "## Goal",
+    "",
+    task.goal,
+    "",
+    "## Workspace",
+    "",
+    `- Root: ${task.root}`,
+    "- Harness: pi-harness-lab",
+    "- Worktree: not created by default",
+    "",
+    "## Risk",
+    "",
+    `- Risk level: ${task.risk}`,
+    "- Reason: selected through /harness-brief task-shaping flow",
+    "",
+    "## Scope",
+    "",
+    `- Allowed files or areas: ${brief.inScope}`,
+    "- Forbidden files or areas: credentials, auth files, token stores, unrelated user files.",
+    `- Non-goals: ${brief.outOfScope}`,
+    "",
+    "## Current State",
+    "",
+    "- Created from the interactive harness brief builder.",
+    "",
+    "## Desired Behavior",
+    "",
+    `- ${task.goal}`,
+    "",
+    "## Verification",
+    "",
+    `- Required checks: ${brief.verify}`,
+    "- Optional checks: broader tests when risk justifies them.",
+    "- Manual checks: record screenshots or command output when relevant.",
+    "",
+    "## Stop Conditions",
+    "",
+    "- Stop if secrets are required.",
+    "- Stop if production-affecting actions are required.",
+    "- Stop if destructive actions are required outside the active task scope.",
+    "- Stop after 3 failed attempts and re-plan.",
+    "",
+  ].join("\n");
+}
+
+async function maybeRegisterLocalLlmProviders(pi: any, ctx: any, explicit: boolean) {
+  const detected = await detectLocalLlmProviders();
+  const registered: string[] = [];
+  for (const provider of detected.filter((item) => item.models.length > 0)) {
+    try {
+      pi.registerProvider(provider.name, {
+        name: provider.label,
+        baseUrl: provider.baseUrl,
+        apiKey: provider.apiKey,
+        api: "openai-completions",
+        compat: { supportsDeveloperRole: false, supportsReasoningEffort: false },
+        models: provider.models.map((id: string) => ({ id, name: `${id} (${provider.label})`, reasoning: false, input: ["text"], cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 } })),
+      });
+      registered.push(`${provider.label}: ${provider.models.length} model(s)`);
+    } catch (error: any) {
+      if (explicit) ctx.ui.notify(`Could not register ${provider.label}: ${String(error?.message || error)}`, "warning");
+    }
+  }
+  if (registered.length) {
+    ctx.ui.notify(`Local LLM provider ready. ${registered.join("; ")}\nUse /model to choose one for low-risk scouting/summaries/check triage.`, "success");
+    ctx.ui.setEditorText("Use a local model for a low-risk scouting or summarization task. Do not make it the default for risky implementation.");
+    return;
+  }
+  if (explicit) {
+    ctx.ui.notify("No Ollama or LM Studio local server found. Start Ollama (`ollama serve`) or LM Studio's local server, then rerun /harness-local-llm.", "info");
+  }
+}
+
+async function detectLocalLlmProviders(): Promise<Array<{ name: string; label: string; baseUrl: string; apiKey: string; models: string[] }>> {
+  const ollama = await fetchJson("http://localhost:11434/api/tags", 700);
+  const lmStudio = await fetchJson("http://localhost:1234/v1/models", 700);
+  const providers = [];
+  if (ollama.ok) {
+    const models = Array.isArray(ollama.data?.models) ? ollama.data.models.map((item: any) => String(item.name || item.model || "")).filter(Boolean) : [];
+    providers.push({ name: "harness-ollama", label: "Ollama", baseUrl: "http://localhost:11434/v1", apiKey: "ollama", models });
+  }
+  if (lmStudio.ok) {
+    const models = Array.isArray(lmStudio.data?.data) ? lmStudio.data.data.map((item: any) => String(item.id || "")).filter(Boolean) : [];
+    providers.push({ name: "harness-lm-studio", label: "LM Studio", baseUrl: "http://localhost:1234/v1", apiKey: "lm-studio", models });
+  }
+  return providers;
+}
+
+async function fetchJson(url: string, timeoutMs: number): Promise<{ ok: boolean; data?: any }> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, { signal: controller.signal });
+    if (!response.ok) return { ok: false };
+    return { ok: true, data: await response.json() };
+  } catch {
+    return { ok: false };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function presentAssistIfRequested(ctx: any) {
+  const assist = process.env.PI_HARNESS_ASSIST || "";
+  if (!assist) return;
+  if (assist === "models") return showCapabilityHelp(ctx, "models");
+  if (assist === "team") return showCapabilityHelp(ctx, "team");
+  if (assist === "research") return showCapabilityHelp(ctx, "research");
+  if (assist === "memory") return showMemoryReview(ctx);
+  if (assist === "brief") {
+    ctx.ui.notify("Task builder ready. Press enter to run /harness-brief, or edit the prompt first.", "info");
+    ctx.ui.setEditorText("/harness-brief");
+    return;
+  }
+  if (assist === "local-llm") {
+    ctx.ui.notify("Local LLM mode opened. If models were found, use /model; otherwise start Ollama or LM Studio and run /harness-local-llm.", "info");
+  }
+}
+
 function ensureDirs() {
   const root = rootDir();
   for (const path of [
@@ -1186,10 +1640,12 @@ function ensureDirs() {
     join(root, "state", "reviews"),
     join(root, "state", "evals"),
     join(root, "state", "locks"),
+    join(root, "state", "long-runs"),
     join(root, "state", "memory"),
     join(root, "state", "package-reviews"),
     join(root, "state", "provenance"),
     join(root, "state", "policy"),
+    join(root, "state", "setup"),
     join(root, "state", "status"),
     join(root, "state", "tool-proposals"),
     join(root, "state", "traces"),

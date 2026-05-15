@@ -360,7 +360,8 @@ function output(result, label) {
     for (const action of result.nextActions.slice(0, 5)) console.log(`- ${action}`);
   }
   console.log("Just-in-time help:");
-  console.log("- Run `" + commandWithArgs(harnessCommand("setup"), "--apply") + "` for setup, models, teams, and research guidance.");
+  console.log("- Run `" + commandWithArgs(harnessCommand("setup"), "--apply") + "` for setup.");
+  console.log("- Run `" + commandWithArgs(harnessCommand("pi"), "more") + "` or type `/harness` inside Pi for models, local LLMs, team/research tools, memory, and task shaping.");
   console.log("- Run `" + harnessCommand("learn") + "` when you want the next safe practice step.");
   console.log("- README.md is the main path; docs/ is reference only when you are stuck.");
   process.exit(result.ok ? 0 : 1);

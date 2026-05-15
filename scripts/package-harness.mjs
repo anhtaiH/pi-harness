@@ -18,6 +18,7 @@ const include = [
   ".pi/prompts/harness-start.md",
   ".pi/prompts/harness-finish.md",
   ".pi/settings.json",
+  "bin/install",
   "bin/pi-harness",
   "bin/pi-harness-adopt.mjs",
   "bin/gemini-lab",

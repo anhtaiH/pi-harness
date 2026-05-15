@@ -50,7 +50,7 @@ function cardModels() {
     status: present.length ? "partly configured" : "needs login or environment setup",
     why: "Use Pi subscription login, provider environment variables, or custom providers. The harness reports presence only and never prints secret values.",
     current: { presentProviders: present, localCustomModelsFile: existsSync(pathFromRoot(".pi" + "-agent", "models.json")) },
-    doNow: [harnessCommand("pi"), "inside Pi: /login", "inside Pi: /model"],
+    doNow: [commandWithArgs(harnessCommand("pi"), "models"), "inside Pi: /harness-models", "inside Pi: /login", "inside Pi: /model"],
     prompt: "Help the human choose a default model. Inspect availability through Pi UI only. Do not read local login files or print key material."
   };
 }
@@ -59,10 +59,10 @@ function cardTeam() {
   return {
     id: "team",
     title: "Agent team",
-    status: packageReady("pi-subagents") ? "baked in, opt in" : "not ready",
-    why: "Pi core stays skeletal. This harness bakes in reviewed team packages but loads them only when the human opts in for that session.",
+    status: packageReady("pi-subagents") ? "available on demand" : "not ready",
+    why: "Pi core stays skeletal. This harness bakes in reviewed team packages but loads them only through the friendly team flow for that session.",
     current: { subagents: packageStatus("pi-subagents"), intercom: packageStatus("pi-intercom"), projectAgents: projectAgents() },
-    doNow: ["PI_HARNESS_ENABLE_PROJECT_PACKAGES=1 " + harnessCommand("pi"), "inside Pi: /subagents-doctor", "inside Pi: Show me the available subagents."],
+    doNow: [commandWithArgs(harnessCommand("pi"), "team"), "inside Pi: /harness-team", "inside Pi: /subagents-doctor", "inside Pi: Show me the available subagents."],
     guardrails: ["Use scout and reviewer before worker.", "Use task-scoped policy before live subagent tools.", "Use intercom when child agents need decisions."],
     prompt: "Run subagent diagnostics, list available agents, and propose scout -> planner -> worker -> reviewer for non-trivial work."
   };
@@ -72,10 +72,10 @@ function cardResearch() {
   return {
     id: "research",
     title: "Research and web",
-    status: packageReady("pi-web-access") ? "baked in, opt in" : "not ready",
-    why: "Research touches the network, so the harness keeps it reviewed, visible, and opt in.",
+    status: packageReady("pi-web-access") ? "available on demand" : "not ready",
+    why: "Research touches the network, so the harness keeps it reviewed, visible, and available through the friendly research flow.",
     current: { webAccess: packageStatus("pi-web-access"), mcpAdapter: packageStatus("pi-mcp-adapter"), promptWorkflows: packageStatus("pi-prompt-template-model"), projectMcpFile: existsSync(pathFromRoot(".mcp.json")) },
-    doNow: ["PI_HARNESS_ENABLE_PROJECT_PACKAGES=1 " + harnessCommand("pi"), "inside Pi: /mcp setup", "inside Pi: /mcp tools", "ask researcher for source-cited docs research after scope is clear"],
+    doNow: [commandWithArgs(harnessCommand("pi"), "research"), "inside Pi: /harness-research", "inside Pi: /mcp setup", "inside Pi: /mcp tools", "ask researcher for source-cited docs research after scope is clear"],
     guardrails: ["Prefer official docs.", "Keep MCP proxy-first unless direct tools are necessary.", "Write-like external tools still need intent and proof."],
     prompt: "Inspect research and MCP setup, prefer read-only source-cited research, and keep write-like connectors gated."
   };
@@ -119,7 +119,7 @@ function nextSteps() {
   const steps = [];
   if (!apply) steps.push("Write prompt artifacts through setup: " + commandWithArgs(harnessCommand("setup"), "--apply"));
   steps.push("Golden path: " + harnessCommand("setup") + ", then " + harnessCommand("pi"));
-  steps.push("Opt into packaged batteries for a session only when needed: PI_HARNESS_ENABLE_PROJECT_PACKAGES=1 " + harnessCommand("pi"));
+  steps.push("Open just-in-time capability flows: " + commandWithArgs(harnessCommand("pi"), "more") + ", " + commandWithArgs(harnessCommand("pi"), "team") + ", " + commandWithArgs(harnessCommand("pi"), "research") + ", or inside Pi use /harness.");
   return steps;
 }
 

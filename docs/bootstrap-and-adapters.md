@@ -1,12 +1,14 @@
 # Bootstrap and Adapter UX
 
-This harness should feel safe and obvious on first run. The preferred path is now the setup wizard:
+This harness should feel safe and obvious on first run. After local adoption, use the launcher printed by `pi-harness-adopt`:
 
 ```bash
-npm run harness:setup
-npm run harness:setup -- --apply --install --run-gates
-npm run pi
+/path/to/local/pi-harness/.../bin/pi-harness setup
+/path/to/local/pi-harness/.../bin/pi-harness setup --apply --install --run-gates
+/path/to/local/pi-harness/.../bin/pi-harness
 ```
+
+Repo mode exposes the same flow as `npm run harness:setup` and `npm run pi`.
 
 For machine-readable automation, call the scripts directly so npm lifecycle text does not wrap JSON:
 
@@ -18,7 +20,7 @@ node scripts/harnessctl.mjs ready --run-gates --json
 
 ## What the setup wizard does
 
-`npm run harness:setup` is the agent-driven entry point. Without flags it shows a plan. With `--apply`, it performs safe local setup and writes inspectable artifacts under `state/setup/`.
+The setup command is the agent-driven entry point. Without flags it shows a plan. With `--apply`, it performs safe local setup and writes inspectable artifacts under `state/setup/` in the selected harness root.
 
 The wizard follows four phases:
 
@@ -31,18 +33,20 @@ It does not hide risky work. Outside-the-repo writes still require the normal in
 
 ## What bootstrap does
 
-`npm run harness:bootstrap` is an inspect-and-initialize command by default. It:
+Bootstrap is an inspect-and-initialize command by default. In local mode run it as `.../bin/pi-harness bootstrap`; in repo mode run `npm run harness:bootstrap`. It:
 
 - checks Node and npm availability
 - verifies expected package scripts and lockfile
 - creates required local state directories and `.gitkeep` placeholders
-- checks for Pi CLI availability without reading login files, preferring the repo-local `node_modules/.bin/pi`
+- checks for Pi CLI availability without reading login files, preferring the harness root's `node_modules/.bin/pi`
 - checks package manifest, connector metadata, package approvals, package provenance, vendored package artifacts, and quick harness health
 - prints concise next steps
 
 It does **not** install packages unless you explicitly pass `--install`:
 
 ```bash
+/path/to/local/pi-harness/.../bin/pi-harness bootstrap --install
+# repo mode:
 npm run harness:bootstrap -- --install
 ```
 
@@ -50,7 +54,7 @@ Use `--offline` only when the full dependency closure is available from local ca
 
 ## Good UX principles
 
-- One obvious entry point: `npm run harness:setup`.
+- One obvious entry point after adoption: the printed launcher in local mode, or `npm run harness:setup` in repo mode.
 - Idempotent setup: running bootstrap repeatedly should be safe.
 - Clear status language: show ready, warning, and blocker states separately.
 - No hidden writes: setup defaults to plan mode, and `--apply` shows artifacts and commands.
@@ -88,16 +92,17 @@ Adapters must not contain private material, login/session file paths, or global 
 
 ## Recommended first-run flow in a new repo
 
-1. Clone or vendor the harness directory.
-2. Run `npm run harness:setup` to preview the plan.
-3. Run `npm run harness:setup -- --apply --install --run-gates` to let the wizard install, bootstrap, verify, and write a Pi handoff prompt.
-4. Inspect `state/setup/agent-prompt.md`.
-5. Start Pi with `npm run pi` and ask it to continue from the prompt.
-6. Copy `adapters/example-project.harness.json` only when the project needs a custom adapter.
-7. Create the first task packet before implementation work.
+1. Run `pi-harness-adopt` from the project root.
+2. Use local mode by default, or rerun with `--mode repo` if the team wants `.pi-harness/` checked in.
+3. Run the printed setup command to preview the plan.
+4. Run the printed setup command with `--apply --install --run-gates` to let the wizard install, bootstrap, verify, and write a Pi handoff prompt.
+5. Inspect `state/setup/agent-prompt.md` under the harness root.
+6. Start Pi with the printed launcher and ask it to continue from the prompt.
+7. Copy `adapters/example-project.harness.json` only when the project needs a custom adapter.
+8. Create the first task packet before implementation work.
 
 ## Current portability caveat
 
-The repo-local Pi CLI is now pinned through `package.json` to `vendor/npm/earendil-works-pi-coding-agent-0.74.0.tgz`, backed by `package-approvals.json`, `package-reviews/`, and `vendor/manifest.json`. A clean clone should use local Pi after `npm ci`.
+The Pi CLI is pinned through the harness `package.json` to `vendor/npm/earendil-works-pi-coding-agent-0.74.0.tgz`, backed by `package-approvals.json`, `package-reviews/`, and `vendor/manifest.json`. A clean harness root should use local Pi after setup installs dependencies.
 
 Remaining caveat: this is clone-and-run with normal npm dependency installation, not fully offline. Full offline support would require vendoring or mirroring transitive npm dependencies as well.

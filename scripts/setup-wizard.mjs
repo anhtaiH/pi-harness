@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { spawnSync } from "node:child_process";
-import { hasFlag, nowIso, pathFromRoot, timestampId } from "./lib/harness-state.mjs";
+import { commandWithArgs, harnessCommand, hasFlag, nowIso, pathFromRoot, timestampId } from "./lib/harness-state.mjs";
 import { installCommandText, selectPackageManager } from "./lib/package-manager.mjs";
 
 const args = process.argv.slice(2);
@@ -102,7 +102,7 @@ function installDeps() {
 
 function bootstrapState() {
   if (!apply) {
-    actions.push({ id: "bootstrap-local-state", title: "Bootstrap local state", status: "planned", applied: false, command: "node scripts/bootstrap.mjs --json", why: "Create local placeholders and validate repo-contained behavior." });
+    actions.push({ id: "bootstrap-local-state", title: "Bootstrap local state", status: "planned", applied: false, command: "node scripts/bootstrap.mjs --json", why: "Create local placeholders and validate harness behavior." });
     return;
   }
   capture({ id: "bootstrap-local-state", title: "Bootstrap local state", command: "node scripts/bootstrap.mjs --json", why: "Automate boilerplate and leave a structured record.", result: run(process.execPath, ["scripts/bootstrap.mjs", "--json"], 5 * 60_000) });
@@ -201,23 +201,24 @@ function summarizeCapabilities(cards) {
 
 function nextSteps() {
   const steps = [];
-  if (!apply) steps.push("Apply safe local setup: `npm run harness:setup -- --apply`.");
-  if (apply && !runGates) steps.push("For full confidence: `npm run harness:setup -- --apply --run-gates --allow-open-tasks`.");
+  const setupCommand = harnessCommand("setup");
+  if (!apply) steps.push("Apply safe local setup: `" + commandWithArgs(setupCommand, "--apply") + "`.");
+  if (apply && !runGates) steps.push("For full confidence: `" + commandWithArgs(setupCommand, "--apply --run-gates --allow-open-tasks") + "`.");
   if (apply) steps.push("Inspect the generated Pi prompt: " + rel(promptPath) + ".");
-  if (apply) steps.push("Start Pi with `npm run pi` and hand it the generated prompt.");
-  steps.push("Use `npm run harness:next` when you are unsure what to do next.");
+  if (apply) steps.push("Start Pi with `" + harnessCommand("pi") + "` and hand it the generated prompt.");
+  steps.push("Use `" + harnessCommand("next") + "` when you are unsure what to do next.");
   return steps;
 }
 
 function promptText() {
   return [
-    "You are Pi running inside this repo-local harness. Continue setup as an agent-driven, transparent wizard.",
+    "You are Pi running inside this harness. Continue setup as an agent-driven, transparent wizard.",
     "",
     "Goal:",
     "- Make the harness easier to adopt by automating safe boilerplate and explaining each action.",
     "",
     "Rules:",
-    "- Keep changes repo-contained unless the human explicitly asks otherwise.",
+    "- Keep project changes explicit; local-sidecar mode should not write to the project unless the human asks.",
     "- Prefer small, inspectable steps over broad hidden automation.",
     "",
     "Start here:",
@@ -230,10 +231,10 @@ function promptText() {
     "7. Write evidence before claiming completion.",
     "",
     "Useful commands:",
-    "- npm run harness:setup -- --apply",
-    "- npm run pi",
-    "- npm run harness:next",
-    "- npm run harness:learn",
+    "- " + commandWithArgs(harnessCommand("setup"), "--apply"),
+    "- " + harnessCommand("pi"),
+    "- " + harnessCommand("next"),
+    "- " + harnessCommand("learn"),
     "",
   ].join("\n");
 }

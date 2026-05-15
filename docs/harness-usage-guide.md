@@ -1,31 +1,42 @@
 # How To Use This Pi Harness
 
-This lab is a local, portable harness prototype built around Pi. Use it when you want Pi to run with project-local skills, prompts, extensions, sessions, task packets, safety checks, and evidence gates instead of your normal global Pi setup.
+This lab is a local, portable harness prototype built around Pi. Use it when you want Pi to run with harness skills, prompts, extensions, sessions, task packets, safety checks, and evidence gates instead of your normal global Pi setup. The harness can live outside the project checkout (default local adoption) or inside `.pi-harness/` (repo mode).
 
 ## 1. Start Here
 
+Local adoption:
+
 ```bash
 cd your-project
-npm install
+npx --yes --package github:anhtaiH/pi-harness pi-harness-adopt -- --apply
+/path/to/local/pi-harness/.../bin/pi-harness setup --apply --install
+/path/to/local/pi-harness/.../bin/pi-harness next
+/path/to/local/pi-harness/.../bin/pi-harness
+```
+
+Harness source checkout or repo mode:
+
+```bash
 npm run harness:bootstrap
 npm run doctor
 npm run gates
 npm run harness:next
-./bin/pi-harness
+npm run pi
 ```
 
-Why use `./bin/pi-harness` instead of plain `pi`?
+Why use the harness launcher instead of plain `pi`?
 
-- It sets `PI_CODING_AGENT_DIR` to this repo's `.pi-agent/` directory.
+- It sets `PI_CODING_AGENT_DIR` to the harness root's `.pi-agent/` directory.
 - It saves sessions under `state/sessions/`.
-- It loads this repo's `.pi/` resources by default.
+- It loads the harness `.pi/` resources by default.
+- It starts Pi in your project root even when the harness root is local/outside the checkout.
 - It avoids accidentally depending on global user Pi skills, prompts, or extensions.
 
 For a one-shot prompt instead of an interactive session:
 
 ```bash
-./bin/pi-harness -p "Use harness_status and tell me what tasks exist."
-# or
+/path/to/local/pi-harness/.../bin/pi-harness -p "Use harness_status and tell me what tasks exist."
+# repo mode:
 npm run pi:print -- "Use harness_status and tell me what tasks exist."
 ```
 

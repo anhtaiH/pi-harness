@@ -2,13 +2,15 @@
 
 Start with the root `README.md`.
 
-This directory is fallback reference. The product path should be adoption into your existing repo, then:
+This directory is fallback reference. The product path should be adoption into your existing repo, then the launcher printed by adoption:
 
 ```bash
-npm run harness:setup
-npm run pi
-npm run harness:next
+/path/to/local/pi-harness/.../bin/pi-harness setup
+/path/to/local/pi-harness/.../bin/pi-harness
+/path/to/local/pi-harness/.../bin/pi-harness next
 ```
+
+In repo mode, those commands are available as `npm run harness:setup`, `npm run pi`, and `npm run harness:next`.
 
 If a doc here feels required for first use, that is a UX bug. Prefer improving the wizard, command output, or README.
 

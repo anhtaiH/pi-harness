@@ -3,13 +3,68 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 HARNESS_ROOT="$ROOT"
+PROJECT_CONFIG="$HARNESS_ROOT/harness.project.json"
+PROJECT_ROOT_FROM_CONFIG=""
+if [[ -f "$PROJECT_CONFIG" ]]; then
+  PROJECT_ROOT_FROM_CONFIG="$(node -e '
+const fs = require("fs");
+try {
+  const file = process.argv[1];
+  const data = JSON.parse(fs.readFileSync(file, "utf8"));
+  if (data && typeof data.projectRoot === "string") process.stdout.write(data.projectRoot);
+} catch {}
+' "$PROJECT_CONFIG")"
+fi
+
 if [[ -n "${PI_HARNESS_PROJECT_ROOT:-}" ]]; then
   PROJECT_ROOT="$(cd "$PI_HARNESS_PROJECT_ROOT" && pwd)"
+elif [[ -n "$PROJECT_ROOT_FROM_CONFIG" ]]; then
+  PROJECT_ROOT="$(cd "$PROJECT_ROOT_FROM_CONFIG" && pwd)"
 elif [[ "$(basename "$HARNESS_ROOT")" == ".pi-harness" ]]; then
   PROJECT_ROOT="$(cd "$HARNESS_ROOT/.." && pwd)"
 else
   PROJECT_ROOT="$HARNESS_ROOT"
 fi
+
+mkdir -p "$HARNESS_ROOT/.pi-agent" "$HARNESS_ROOT/state/sessions" "$HARNESS_ROOT/state/tasks"
+
+export PI_HARNESS_ROOT="$HARNESS_ROOT"
+export PI_HARNESS_PROJECT_ROOT="$PROJECT_ROOT"
+export PI_CODING_AGENT_DIR="${PI_CODING_AGENT_DIR:-$HARNESS_ROOT/.pi-agent}"
+
+case "${1:-}" in
+  setup)
+    shift
+    cd "$HARNESS_ROOT"
+    exec node scripts/setup-wizard.mjs "$@"
+    ;;
+  bootstrap)
+    shift
+    cd "$HARNESS_ROOT"
+    exec node scripts/bootstrap.mjs "$@"
+    ;;
+  next|learn|check|ready)
+    COMMAND="$1"
+    shift
+    cd "$HARNESS_ROOT"
+    exec node scripts/harnessctl.mjs "$COMMAND" "$@"
+    ;;
+  harness)
+    shift
+    cd "$HARNESS_ROOT"
+    exec node scripts/harnessctl.mjs "$@"
+    ;;
+  gates)
+    shift
+    cd "$HARNESS_ROOT"
+    exec npm run gates -- "$@"
+    ;;
+  package-doctor)
+    shift
+    cd "$HARNESS_ROOT"
+    exec node scripts/package-harness.mjs doctor "$@"
+    ;;
+esac
 
 LOCAL_PI="$HARNESS_ROOT/node_modules/.bin/pi"
 if [[ -x "$LOCAL_PI" ]]; then
@@ -18,15 +73,9 @@ else
   PI_BIN="$(command -v pi || true)"
 fi
 if [[ -z "${PI_BIN:-}" ]]; then
-  echo "Pi CLI not found. Run npm run harness:setup -- --apply --install, then retry." >&2
+  echo "Pi CLI not found. Run $HARNESS_ROOT/bin/pi-harness setup --apply --install, then retry." >&2
   exit 1
 fi
-
-mkdir -p "$HARNESS_ROOT/.pi-agent" "$HARNESS_ROOT/state/sessions" "$HARNESS_ROOT/state/tasks"
-
-export PI_HARNESS_ROOT="$HARNESS_ROOT"
-export PI_HARNESS_PROJECT_ROOT="$PROJECT_ROOT"
-export PI_CODING_AGENT_DIR="${PI_CODING_AGENT_DIR:-$HARNESS_ROOT/.pi-agent}"
 
 cd "$HARNESS_ROOT"
 

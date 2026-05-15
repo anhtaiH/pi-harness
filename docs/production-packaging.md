@@ -52,7 +52,7 @@ npm run package:harness -- doctor --json
 
 These commands only inspect local state and print summaries. They do not package, copy, upload, install, or write to external systems.
 
-Bootstrap and wrappers prefer the repo-local `node_modules/.bin/pi` installed from the vendored Pi CLI tarball. Source review for `@earendil-works/pi-coding-agent@0.74.0` remains blocked because it is a powerful agent CLI, so production packaging keeps the explicit manual approval, committed review summary, checksum, and provenance checks visible instead of bypassing the policy.
+Bootstrap and wrappers prefer the harness root's `node_modules/.bin/pi` installed from the vendored Pi CLI tarball. Source review for `@earendil-works/pi-coding-agent@0.74.0` remains blocked because it is a powerful agent CLI, so production packaging keeps the explicit manual approval, committed review summary, checksum, and provenance checks visible instead of bypassing the policy.
 
 For a stricter pre-rollout check, release any active writer lock and run:
 

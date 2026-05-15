@@ -1,8 +1,8 @@
 # Pi Harness
 
-A portable, repo-contained control plane for running Pi as a disciplined coding agent.
+A portable control plane for running Pi as a disciplined coding agent.
 
-The goal is not more documentation. The goal is an agent workflow that teaches itself: safe defaults, clear failure messages, exact next commands, and proof before "done."
+The goal is not more documentation. The goal is an agent workflow that teaches itself: safe defaults, clear failure messages, exact next commands, and proof before "done." The harness can live outside your project checkout for personal/local use, or inside `.pi-harness/` when a team wants to version it with the code.
 
 ## Start Here
 
@@ -12,20 +12,28 @@ You probably already have a project repo. Start there.
 cd your-project
 npx --yes --package github:anhtaiH/pi-harness pi-harness-adopt          # show the plan, no writes
 npx --yes --package github:anhtaiH/pi-harness pi-harness-adopt -- --apply
+```
+
+Default adoption is **local-only**: it copies the harness outside your project checkout and prints the exact launcher commands. That means no Pi/harness code, installs, sessions, or package cache need to be committed to your repo.
+
+After apply, run the commands printed under `Next`. They look like this:
+
+```bash
+/path/to/local/pi-harness/projects/your-project-abc123/bin/pi-harness setup --apply --install
+/path/to/local/pi-harness/projects/your-project-abc123/bin/pi-harness
+```
+
+If you want the old npm-run flow and are comfortable putting harness entry points in the project, choose repo mode:
+
+```bash
+npx --yes --package github:anhtaiH/pi-harness pi-harness-adopt -- --mode repo --apply
 npm run harness:setup -- --apply --install
 npm run pi
 ```
 
-Adoption copies the harness into `.pi-harness/` as a sidecar and adds a small set of npm scripts to your existing `package.json`. Your project stays the working directory; harness state, sessions, package cache, and local Pi login stay under `.pi-harness/`.
+Repo mode copies the harness into `.pi-harness/` and adds a small set of npm scripts to your existing `package.json`. Local mode writes no project files by default; add `--scripts package-json` only if you intentionally want package scripts pointing at your local harness.
 
-If you are already inside an adopted project, the daily path is simply:
-
-```bash
-npm run harness:setup
-npm run pi
-```
-
-The setup wizard installs the sidecar lockfile when asked, preferring fast pnpm via Corepack and falling back to npm when needed. It bootstraps local state, shows optional model/team/research batteries, runs checks, writes `.pi-harness/state/setup/latest.json`, and generates handoff prompts under `.pi-harness/state/setup/` so you can ask Pi to continue with the exact handoff visible.
+The setup wizard installs the harness lockfile when asked, preferring fast pnpm via Corepack and falling back to npm when needed. It bootstraps local state, shows optional model/team/research batteries, runs checks, writes `state/setup/latest.json` under the harness root, and generates handoff prompts so you can ask Pi to continue with the exact handoff visible.
 
 Inside Pi, hand over the generated prompt or ask for one small real task:
 
@@ -53,13 +61,15 @@ You should learn these by doing. `npm run harness:learn` prints the current stat
 
 ## Daily Loop
 
-Most days, from your project repo, should only need this:
+Most days should only need the launcher that adoption printed:
 
 ```bash
-npm run harness:setup      # guided setup/checks; add --apply when you want it to write local handoffs
-npm run pi                 # start Pi in your project with harness guardrails
-npm run harness:next       # ask "what should I do next?"
+/path/to/local/pi-harness/.../bin/pi-harness setup      # guided setup/checks; add --apply to write local handoffs
+/path/to/local/pi-harness/.../bin/pi-harness            # start Pi in your project with harness guardrails
+/path/to/local/pi-harness/.../bin/pi-harness next       # ask "what should I do next?"
 ```
+
+In repo mode, the same loop is available as `npm run harness:setup`, `npm run pi`, and `npm run harness:next`.
 
 Advanced checks still exist for CI and maintainers, but they should not be the onboarding path. You do not need to install pnpm first; setup chooses the best available locked install path.
 
@@ -76,9 +86,9 @@ That is the product surface. The docs are reference material, not the onboarding
 
 The harness should behave like Pi extensions do: ask the agent to improve the system, and the system makes the safe path obvious.
 
-`npm run harness:setup` is the transparent wizard:
+The setup command is the transparent wizard (`.../bin/pi-harness setup` in local mode, `npm run harness:setup` in repo mode):
 
-- **inspect**: show local facts such as Node, lockfile, installed dependencies, repo-local Pi, and optional batteries
+- **inspect**: show local facts such as Node, lockfile, installed dependencies, local Pi, and optional batteries
 - **apply**: with `--apply`, automate safe local boilerplate instead of asking a human to copy steps
 - **verify**: run fast checks, or full gates with `--run-gates`
 - **hand off**: generate Pi prompts that say what happened and how the agent should continue
@@ -91,17 +101,19 @@ Pi is intentionally skeletal. This harness chooses a practical starter kit and m
 
 | Battery | Included here | How to use it |
 | --- | --- | --- |
-| Repo-local Pi CLI | yes, pinned and reviewed/manual-approved | `npm run pi` |
-| Model/login guidance | yes, inside setup | `npm run harness:setup`, then `/login` and `/model` inside Pi |
-| Subagent teams | yes, `pi-subagents` reviewed/vendored | `PI_HARNESS_ENABLE_PROJECT_PACKAGES=1 npm run pi`, then `/subagents-doctor` |
+| Local/repo Pi CLI | yes, pinned and reviewed/manual-approved | run the printed `.../bin/pi-harness` launcher, or `npm run pi` in repo mode |
+| Model/login guidance | yes, inside setup | run setup, then `/login` and `/model` inside Pi |
+| Subagent teams | yes, `pi-subagents` reviewed/vendored | `PI_HARNESS_ENABLE_PROJECT_PACKAGES=1 .../bin/pi-harness`, or `PI_HARNESS_ENABLE_PROJECT_PACKAGES=1 npm run pi` in repo mode |
 | Parent-child coordination | yes, `pi-intercom` reviewed/vendored | use with subagents when child agents need decisions |
 | MCP adapter | yes, `pi-mcp-adapter` reviewed/vendored | enable packages, then `/mcp setup` |
 | Web/research tools | yes, `pi-web-access` reviewed/vendored | enable packages, then ask `researcher` for sourced research |
 | Prompt workflow helpers | yes, `pi-prompt-template-model` reviewed/vendored | enable packages when you want reusable model/subagent prompts |
 
-Default `npm run pi` loads only the harness extension/skill. To load optional batteries for a session:
+Default Pi launch loads only the harness extension/skill. To load optional batteries for a session, prefix the same launcher:
 
 ```bash
+PI_HARNESS_ENABLE_PROJECT_PACKAGES=1 /path/to/local/pi-harness/.../bin/pi-harness
+# or, in repo mode:
 PI_HARNESS_ENABLE_PROJECT_PACKAGES=1 npm run pi
 ```
 
@@ -120,7 +132,7 @@ Inside Pi:
 /model
 ```
 
-`npm run harness:setup` shows the model, team, and research choices when they matter. You should not need to memorize separate setup commands.
+The setup wizard shows the model, team, and research choices when they matter. You should not need to memorize separate setup commands.
 
 Recommended agent-team loop for non-trivial work:
 
@@ -155,19 +167,23 @@ The harness is deliberately boring where agents are usually risky:
 
 ## How Adoption Works
 
-`pi-harness-adopt` does not replace your repo. It adds a sidecar:
+`pi-harness-adopt` does not replace your repo. It supports two placements:
 
 ```text
-your-project/
-  package.json              small npm-script additions
-  .pi-harness/              harness code, checks, prompts, reviewed packages
-    state/                  local task/evidence/session state
-    local-pi-state/         ignored local Pi login/session data
+Local mode, default:
+  your-project/                       no harness files required
+  ~/.../pi-harness/projects/<id>/     harness code, checks, prompts, reviewed packages, state
+
+Repo mode, opt in:
+  your-project/
+    package.json                      small npm-script additions
+    .pi-harness/                      harness code, checks, prompts, reviewed packages
+      state/                          local task/evidence/session state
 ```
 
-`npm run pi` starts Pi with your project as the working directory and `.pi-harness/` as the harness/control-plane directory.
+Both modes start Pi with your project as the working directory and the sidecar as the harness/control-plane directory. Local mode records the project path in `harness.project.json` inside the local sidecar; repo mode infers the project from `.pi-harness/..`.
 
-The Pi CLI is pinned inside the sidecar through `.pi-harness/package.json` to:
+The Pi CLI is pinned inside the sidecar through the harness `package.json` to:
 
 ```text
 vendor/npm/earendil-works-pi-coding-agent-0.74.0.tgz
@@ -179,7 +195,7 @@ The automated source review for that CLI is intentionally recorded as `blocked` 
 
 Do not commit or read credential-bearing local files. Do not paste their content into prompts, docs, task artifacts, or memory.
 
-Generated harness state lives under `.pi-harness/state/` in an adopted project and is ignored except placeholder files. Pi login/session data lives in ignored local sidecar state.
+Generated harness state lives under `state/` inside the selected harness root. In local mode that root is outside your project checkout. In repo mode it is `.pi-harness/state/` and runtime state is ignored except placeholder files. Pi login/session data lives in ignored local sidecar state.
 
 ## Contributor Path
 
@@ -200,7 +216,7 @@ This is clone-and-run portable with normal npm access. It is not fully air-gappe
 
 ```text
 .pi/                         Pi extension, skill, prompts, safe subagents, settings
-bin/                         repo-local wrappers and bootstrap helper
+bin/                         local/repo launchers and bootstrap helper
 scripts/                     harness control-plane CLIs and evals
 evals/                       replayable policy/provenance/regression cases
 docs/                        reference shelf, not required onboarding
@@ -224,4 +240,4 @@ The design target is that these pages shrink over time as the CLI, errors, and g
 
 `.github/workflows/pi-harness-gates.yml` runs bootstrap, gates, dry live-smoke checks, and package manifest validation on pushes and PRs.
 
-Current local baseline: project-adoption flow passing, sidecar Pi wrapper supported, repo-local Pi CLI pinned, and the eval suite passing.
+Current local baseline: local-only and repo-contained adoption flows passing, sidecar Pi wrapper supported, pinned Pi CLI, pnpm-first setup, and the eval suite passing.

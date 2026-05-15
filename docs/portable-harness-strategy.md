@@ -144,10 +144,10 @@ Tradeoff: stronger portability, but more repository weight and more responsibili
 
 The Pi CLI is now pinned as a repo dependency backed by a reviewed vendored artifact and manual approval record, so wrappers should resolve `node_modules/.bin/pi` after `npm ci`. The global `pi` fallback remains only for development recovery.
 
-Clone-and-run flow:
+Local-adoption flow for a normal project keeps the harness outside the checkout and uses the printed launcher. Clone-and-run flow for this harness source checkout or repo-mode sidecar is:
 
 ```bash
-npm ci
+corepack pnpm install --frozen-lockfile --ignore-scripts
 npm run harness:bootstrap
 npm run harness:ready -- --run-gates --json
 npm run pi
@@ -200,14 +200,15 @@ Each layer should be testable without live external systems. Live connector smok
 ## Migration path from this lab
 
 1. Keep this lab as the canonical prototype until gates stay green across real work.
-2. Done: add a `harness:bootstrap` script that checks for the Pi CLI, initializes state placeholders, and optionally installs repo-local dependencies when explicitly requested.
+2. Done: add a `harness:bootstrap` script that checks for the Pi CLI, initializes state placeholders, and optionally installs harness-root dependencies when explicitly requested.
 3. Done: add a non-secret adapter example under `adapters/`.
 4. Decide whether the reusable unit is:
-   - a standalone harness repo,
-   - a vendored `agent-harness/` directory inside each work repo,
+   - a local sidecar outside each work repo,
+   - a repo-mode `.pi-harness/` directory inside each work repo,
    - or a package plus project adapter.
-5. If single-repo portability is the top priority, prefer vendored `agent-harness/` plus optional `vendor/` tarballs.
-6. For a new company, clone only the harness repo or vendored directory, run bootstrap, then add a new project adapter. Do not carry over company-specific connector config or memory unless it is sanitized and legally portable.
+5. If no-commit personal adoption is the priority, prefer local sidecar mode.
+6. If single-repo team portability is the priority, prefer repo mode plus optional `vendor/` tarballs.
+7. For a new company, adopt from the project root, run setup, then add a new project adapter. Do not carry over company-specific connector config or memory unless it is sanitized and legally portable.
 
 ## What should stay local-only
 

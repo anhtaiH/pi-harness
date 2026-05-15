@@ -1,7 +1,7 @@
 import { constants, existsSync, mkdirSync, readFileSync, writeFileSync, accessSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { spawnSync } from "node:child_process";
-import { hasFlag, pathFromRoot } from "./lib/harness-state.mjs";
+import { commandWithArgs, harnessCommand, hasFlag, pathFromRoot } from "./lib/harness-state.mjs";
 import { installCommandText, selectPackageManager } from "./lib/package-manager.mjs";
 
 const args = process.argv.slice(2);
@@ -70,7 +70,7 @@ step("pi-cli", "Pi CLI", () => {
   if (existsSync(local)) return commandVersion(local, ["--version"]);
   const global = spawnSync("pi", ["--version"], { cwd: pathFromRoot(), encoding: "utf8", timeout: 10_000 });
   if (global.status === 0) {
-    warnings.push("Repo-local Pi CLI was not found; using global Pi fallback. Pin or vendor a reviewed Pi CLI for full single-repo portability.");
+    warnings.push("Harness-root Pi CLI was not found; using global Pi fallback. Pin or vendor a reviewed Pi CLI for full portability.");
     return `${String(global.stdout || global.stderr).trim() || "available"} (global)`;
   }
   warnings.push("Pi CLI was not found locally or globally; install or vendor it before live Pi sessions.");
@@ -186,12 +186,12 @@ function summarize(parsed) {
 function computeNextSteps() {
   const steps = [];
   if (!existsSync(pathFromRoot("node_modules"))) steps.push("Install dependencies when approved: `" + installCommandText(selectPackageManager()) + "` or `npm run harness:bootstrap -- --install`.");
-  if (warnings.some((warning) => warning.includes("Repo-local Pi CLI"))) steps.push("For full portability, add a reviewed repo-local Pi CLI or vendor artifact.");
+  if (warnings.some((warning) => warning.includes("Harness-root Pi CLI"))) steps.push("For full portability, add a reviewed harness-root Pi CLI or vendor artifact.");
   else if (warnings.some((warning) => warning.includes("Pi CLI"))) steps.push("Install or vendor the Pi CLI before live sessions.");
   if (!runGates) steps.push("Run full readiness before rollout: `npm run harness:ready -- --run-gates`.");
-  steps.push("For guided setup, run: `npm run harness:setup -- --apply`.");
+  steps.push("For guided setup, run: `" + commandWithArgs(harnessCommand("setup"), "--apply") + "`.");
   steps.push("Model, team, and research batteries are explained inside the setup wizard.");
-  steps.push("Start the isolated agent: `npm run pi`.");
+  steps.push("Start the isolated agent: `" + harnessCommand("pi") + "`.");
   steps.push("For an existing project, run the public adoption flow from that project root: `pi-harness-adopt`.");
   return steps;
 }

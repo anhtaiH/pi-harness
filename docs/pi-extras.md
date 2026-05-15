@@ -21,8 +21,11 @@ Reviewed and blocked:
 Trial command:
 
 ```bash
+/path/to/local/pi-harness/.../bin/pi-harness setup
+PI_HARNESS_ENABLE_PROJECT_PACKAGES=1 /path/to/local/pi-harness/.../bin/pi-harness
+# repo mode or harness source checkout:
 npm run harness:setup
-PI_HARNESS_ENABLE_PROJECT_PACKAGES=1 ./bin/pi-harness
+PI_HARNESS_ENABLE_PROJECT_PACKAGES=1 npm run pi
 ```
 
 That mode loads reviewed project package extensions while still suppressing user-level skills and package prompt templates. Full user-resource mode remains available through `PI_HARNESS_INHERIT_USER_RESOURCES=1`, but that is not the default trial path.
@@ -62,7 +65,7 @@ npm run package:review -- npm:pi-mcp-adapter@2.6.0
 npm run package:install-reviewed -- npm:pi-mcp-adapter@2.6.0
 ```
 
-Do not run installs as a batch unless reviews already exist and have non-blocked verdicts. Install one, inspect what changed under `.pi/`, restart Pi, and run `npm run doctor`.
+Do not run installs as a batch unless reviews already exist and have non-blocked verdicts. Install one, inspect what changed under the harness root, restart Pi, and run the harness doctor/check command.
 
 ## Build Ourselves
 

@@ -215,11 +215,13 @@ Files:
 
 Problem: a harness that only works on one machine is not a harness. It is a local habit.
 
-Bootstrap checks prerequisites, creates local placeholders, verifies repo-local Pi, validates metadata, and reports next steps.
+Bootstrap checks prerequisites, creates local placeholders, verifies the harness-root Pi install, validates metadata, and reports next steps.
 
 Commands:
 
 ```bash
+/path/to/local/pi-harness/.../bin/pi-harness bootstrap
+# repo mode or harness source checkout:
 npm run harness:bootstrap
 node scripts/bootstrap.mjs --json
 ```
@@ -248,11 +250,11 @@ Files:
 - `adapters/example-project.harness.json`
 - `docs/tutorials/adapt-to-your-repo.md`
 
-### Repo-local Pi
+### Local/repo Pi
 
-Problem: relying on a global CLI makes clone-and-run brittle.
+Problem: relying on a global CLI makes adoption brittle.
 
-The repo pins Pi through a vendored tarball and `package.json`. The wrapper prefers `node_modules/.bin/pi` and keeps Pi state isolated to the repo.
+The harness pins Pi through a vendored tarball and `package.json`. The wrapper prefers the harness root's `node_modules/.bin/pi`, keeps Pi state isolated to the harness root, and starts Pi in the project root whether the harness is local-only or repo-contained.
 
 Files:
 

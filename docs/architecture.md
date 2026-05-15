@@ -1,17 +1,19 @@
 # Architecture
 
-Pi Harness is a repo-local control plane around Pi.
+Pi Harness is a portable control plane around Pi.
 
-In an adopted project, the harness lives in `.pi-harness/` and Pi starts with the project as the working directory. The harness sidecar owns state, prompts, package provenance, policy, and evals.
+In an adopted project, Pi starts with the project as the working directory while the harness root can live either outside the checkout (default local mode) or inside `.pi-harness/` (repo mode). The harness sidecar owns state, prompts, package provenance, policy, and evals.
 
 ## Layers
 
 ```text
 project repo
-  package.json scripts -> .pi-harness scripts/bin
   source files         -> Pi reads/edits here
+  package.json scripts -> optional; repo mode or --scripts package-json
 
-.pi-harness
+local harness root or .pi-harness/
+  harness.project.json -> local-mode pointer back to the project root
+  bin/pi-harness       -> launcher and setup/next/check wrapper
   .pi/extensions/      -> harness tools and runtime policy
   .pi/skills/          -> task/evidence workflow instructions
   scripts/             -> setup, finish gates, policy, provenance, evals
@@ -40,4 +42,4 @@ brief -> work -> proof -> gate
 
 ## Portability model
 
-The public adoption path copies a sidecar into an existing project. The source repository remains useful for developing the harness itself, but users should not have to clone it as their project.
+The public adoption path copies a sidecar for an existing project. Local mode copies it outside the checkout and writes no project files. Repo mode copies it to `.pi-harness/` and adds npm scripts so a team can review and commit it. The source repository remains useful for developing the harness itself, but users should not have to clone it as their project.

@@ -7,6 +7,41 @@ export function pathFromRoot(...parts) {
   return join(root, ...parts);
 }
 
+export function readHarnessProject() {
+  return readJson(pathFromRoot("harness.project.json"), null);
+}
+
+export function shellQuote(value) {
+  const text = String(value);
+  if (/^[A-Za-z0-9_/:=.,+@%-]+$/.test(text)) return text;
+  return "'" + text.replace(/'/g, "'\"'\"'") + "'";
+}
+
+export function harnessCommand(action = "pi") {
+  const metadata = readHarnessProject();
+  if (metadata?.adoptionMode === "local") {
+    const launcher = shellQuote(pathFromRoot("bin", "pi-harness"));
+    if (!action || action === "pi") return launcher;
+    return `${launcher} ${action}`;
+  }
+  const commands = {
+    setup: "npm run harness:setup",
+    next: "npm run harness:next",
+    learn: "npm run harness:learn",
+    check: "npm run harness:check",
+    ready: "npm run harness:ready",
+    pi: "npm run pi",
+    "pi:print": "npm run pi:print",
+  };
+  return commands[action] || `npm run harness -- ${action}`;
+}
+
+export function commandWithArgs(command, args) {
+  const suffix = String(args || "").trim();
+  if (!suffix) return command;
+  return command.startsWith("npm run ") ? `${command} -- ${suffix}` : `${command} ${suffix}`;
+}
+
 export function ensureDir(path) {
   mkdirSync(path, { recursive: true });
 }

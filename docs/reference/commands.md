@@ -1,19 +1,45 @@
 # Command Reference
 
-This is a quick lookup. For the workflow, start with the root `README.md` and `npm run harness:learn`. For terms like task packet, evidence, finish gate, writer lock, and external-write intent, read `../explanation/core-concepts.md`.
+This is a quick lookup. For the workflow, start with the root `README.md` and the `learn` command from your adopted harness. For terms like task packet, evidence, finish gate, writer lock, and external-write intent, read `../explanation/core-concepts.md`.
 
 ## Adopt into an existing project
+
+Local-only default, no project writes:
 
 ```bash
 npx --yes --package github:anhtaiH/pi-harness pi-harness-adopt
 npx --yes --package github:anhtaiH/pi-harness pi-harness-adopt -- --apply
+# then run the exact launcher commands printed under Next, for example:
+/path/to/local/pi-harness/.../bin/pi-harness setup --apply --install
+/path/to/local/pi-harness/.../bin/pi-harness
+```
+
+Repo-contained optional mode:
+
+```bash
+npx --yes --package github:anhtaiH/pi-harness pi-harness-adopt -- --mode repo --apply
 npm run harness:setup -- --apply --install
 npm run pi
 ```
 
-The setup command prefers pnpm via Corepack for the sidecar install and falls back to npm when pnpm is unavailable.
+The setup command prefers pnpm via Corepack for the harness install and falls back to npm when pnpm is unavailable.
 
 ## Setup and readiness
+
+Local mode:
+
+```bash
+/path/to/local/pi-harness/.../bin/pi-harness setup
+/path/to/local/pi-harness/.../bin/pi-harness setup --apply --install --run-gates
+/path/to/local/pi-harness/.../bin/pi-harness bootstrap
+/path/to/local/pi-harness/.../bin/pi-harness learn
+/path/to/local/pi-harness/.../bin/pi-harness next
+/path/to/local/pi-harness/.../bin/pi-harness check --json
+/path/to/local/pi-harness/.../bin/pi-harness ready --run-gates
+/path/to/local/pi-harness/.../bin/pi-harness gates
+```
+
+Repo mode or harness source checkout:
 
 ```bash
 npm run harness:setup
@@ -30,6 +56,7 @@ Machine-readable forms:
 
 ```bash
 node scripts/adopt-project.mjs --target /path/to/project --json
+node scripts/adopt-project.mjs --target /path/to/project --mode repo --json
 node scripts/setup-wizard.mjs --apply --json
 node scripts/bootstrap.mjs --json
 node scripts/harnessctl.mjs ready --run-gates --json
@@ -39,13 +66,18 @@ node scripts/eval-runner.mjs --json
 ## Start Pi
 
 ```bash
+/path/to/local/pi-harness/.../bin/pi-harness
+/path/to/local/pi-harness/.../bin/pi-harness -p "Use harness_status and summarize state."
+# repo mode:
 npm run pi
 npm run pi:print -- "Use harness_status and summarize state."
 ```
 
-Optional reviewed/vendored package batteries are explained by `npm run harness:setup`. To load them for a Pi session after you decide you need them:
+Optional reviewed/vendored package batteries are explained by setup. To load them for a Pi session after you decide you need them:
 
 ```bash
+PI_HARNESS_ENABLE_PROJECT_PACKAGES=1 /path/to/local/pi-harness/.../bin/pi-harness
+# repo mode:
 PI_HARNESS_ENABLE_PROJECT_PACKAGES=1 npm run pi
 ```
 

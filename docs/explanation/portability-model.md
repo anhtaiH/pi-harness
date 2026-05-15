@@ -1,12 +1,22 @@
 # Portability Model
 
-Portability here means a fresh clone can run the same harness workflow without relying on someone else's global agent setup.
+Portability here means a project can run the same harness workflow without relying on someone else's global agent setup.
 
-It does not mean air-gapped install. That is a different, heavier target.
+It does not mean the harness must live inside every project checkout, and it does not mean air-gapped install. Those are separate choices.
 
-## What clone-and-run means
+## What local adoption means
 
-A new machine should be able to do this:
+Default adoption copies the harness outside the project checkout and records the project path in local metadata. That lets an individual use Pi guardrails without adding `.pi-harness/` or package scripts to the repo.
+
+```bash
+npx --yes --package github:anhtaiH/pi-harness pi-harness-adopt -- --apply
+/path/to/local/pi-harness/.../bin/pi-harness setup --apply --install
+/path/to/local/pi-harness/.../bin/pi-harness
+```
+
+## What repo clone-and-run means
+
+A harness source checkout or repo-mode sidecar should be able to do this:
 
 ```bash
 git clone <repo>
@@ -17,9 +27,9 @@ npm run harness:ready -- --run-gates
 npm run pi
 ```
 
-That path should use repo-local behavior:
+That path should use harness-root-local behavior:
 
-- repo-local Pi CLI from `node_modules/.bin/pi`
+- Pi CLI from the harness root's `node_modules/.bin/pi`
 - harness extension under `.pi/extensions/harness`
 - harness skill under `.pi/skills/harness`
 - local state under `state/`
@@ -29,7 +39,7 @@ That path should use repo-local behavior:
 
 ## What is committed
 
-The repo commits the parts that define behavior:
+In repo mode or in this harness source repository, commit the parts that define behavior:
 
 - wrappers in `bin/`
 - harness extension, skill, prompts, agents, and settings in `.pi/`
@@ -42,7 +52,7 @@ The repo commits the parts that define behavior:
 
 ## What stays local
 
-The repo does not commit live work state:
+Local mode keeps the entire harness root outside the project checkout. Repo mode still must not commit live work state:
 
 - task history
 - sessions
@@ -70,11 +80,13 @@ That is the right tradeoff for now. Full offline support would add a lot of weig
 Package provenance handles this by accepting reviewed, vendored artifacts when local `.pi/npm` is absent. The default wrapper still does not load those packages unless you opt in.
 
 ```bash
+PI_HARNESS_ENABLE_PROJECT_PACKAGES=1 /path/to/local/pi-harness/.../bin/pi-harness
+# repo mode:
 PI_HARNESS_ENABLE_PROJECT_PACKAGES=1 npm run pi
 ```
 
 ## The rule of thumb
 
-If a file defines how the harness behaves, it should be committed.
+If a team wants shared harness behavior, use repo mode and commit the files that define behavior.
 
-If a file records what happened in one local run, it should usually stay ignored.
+If a file records what happened in one local run, it should usually stay ignored or stay in a local-only harness root.

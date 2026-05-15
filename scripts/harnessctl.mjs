@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
-import { hasFlag, pathFromRoot, printResult } from "./lib/harness-state.mjs";
+import { commandWithArgs, harnessCommand, hasFlag, pathFromRoot, printResult } from "./lib/harness-state.mjs";
 
 const args = process.argv.slice(2);
 const command = args.find((arg) => !arg.startsWith("--")) || "next";
@@ -186,7 +186,7 @@ function learningCard(status) {
       ...base,
       title: "You are editing under a writer lock",
       youAreHere: `Writer lock is active for ${status.writerLock.taskId}. Finish or release it before broad gates.`,
-      runNow: ["npm run harness:next", "# after verification: release the writer lock from Pi or the harness tool"],
+      runNow: [harnessCommand("next"), "# after verification: release the writer lock from Pi or the harness tool"],
       practice: "Watch how readiness blocks while a writer lock is active; this teaches the concurrency rule without a separate doc.",
     };
   }
@@ -196,7 +196,7 @@ function learningCard(status) {
       ...base,
       title: "You are inside the task loop",
       youAreHere: `Open task: ${openTask.id}`,
-      runNow: ["npm run harness:next", "npm run harness:check", "# when done: ask Pi to write evidence, then run the finish gate"],
+      runNow: [harnessCommand("next"), harnessCommand("check"), "# when done: ask Pi to write evidence, then run the finish gate"],
       practice: "Make one small change, run the smallest meaningful check, then write evidence while the details are fresh.",
     };
   }
@@ -206,7 +206,7 @@ function learningCard(status) {
       ...base,
       title: "Clear the local blockers first",
       youAreHere: status.health?.findings?.join("; ") || "status needs attention",
-      runNow: ["npm run harness:next", "npm run harness:check", "npm run harness:ready -- --run-gates"],
+      runNow: [harnessCommand("next"), harnessCommand("check"), commandWithArgs(harnessCommand("ready"), "--run-gates")],
       practice: "Treat each blocker as a teaching moment: the command should say why it matters and the exact next command to try.",
     };
   }
@@ -215,7 +215,7 @@ function learningCard(status) {
     ...base,
     title: "Start with one tiny real task",
     youAreHere: "Harness is locally ready.",
-    runNow: ["npm run harness:setup -- --apply", "npm run pi", "/harness-new tiny-doc-or-test-cleanup", "/skill:harness scope it, make the smallest change, run one check, write evidence"],
+    runNow: [commandWithArgs(harnessCommand("setup"), "--apply"), harnessCommand("pi"), "/harness-new tiny-doc-or-test-cleanup", "/skill:harness scope it, make the smallest change, run one check, write evidence"],
     practice: "Let the setup wizard handle boilerplate and optional batteries first, then use a small docs or test cleanup so the harness loop becomes muscle memory before risky work.",
   };
 }
@@ -350,8 +350,8 @@ function output(result, label) {
     for (const action of result.nextActions.slice(0, 5)) console.log(`- ${action}`);
   }
   console.log("Just-in-time help:");
-  console.log("- Run `npm run harness:setup -- --apply` for setup, models, teams, and research guidance.");
-  console.log("- Run `npm run harness:learn` when you want the next safe practice step.");
+  console.log("- Run `" + commandWithArgs(harnessCommand("setup"), "--apply") + "` for setup, models, teams, and research guidance.");
+  console.log("- Run `" + harnessCommand("learn") + "` when you want the next safe practice step.");
   console.log("- README.md is the main path; docs/ is reference only when you are stuck.");
   process.exit(result.ok ? 0 : 1);
 }

@@ -1,6 +1,6 @@
 # Config and State Reference
 
-In an adopted project, these paths live under `.pi-harness/`. In this source repository, they live at the repo root.
+These paths live under the selected harness root. In default local adoption, that root is outside the project checkout. In repo mode, it is `.pi-harness/`. In this source repository, it is the repo root.
 
 ## Committed configuration
 
@@ -8,7 +8,8 @@ In an adopted project, these paths live under `.pi-harness/`. In this source rep
 .pi/settings.json              Pi project settings
 harness.config.json            harness policy, metadata, eval config
 package.json                   npm scripts and dependencies
-package-lock.json              npm dependency lock
+package-lock.json              npm fallback dependency lock
+pnpm-lock.yaml                 preferred pnpm dependency lock
 package-approvals.json         manual approvals for blocked packages
 package-provenance.lock.json   package provenance snapshot
 vendor/manifest.json           vendored artifact checksums and review links
@@ -25,7 +26,7 @@ vendor/manifest.json           vendored artifact checksums and review links
 
 ## Generated local state
 
-Generated state lives under `state/` in the harness root, which is `.pi-harness/state/` after project adoption. Most of it is ignored.
+Generated state lives under `state/` in the harness root. In local adoption this is outside the project checkout; in repo mode it is `.pi-harness/state/`. Most of it is ignored when the harness root is committed.
 
 If you are new to the terms, read `../explanation/core-concepts.md` before browsing these files. The files make more sense once you know what task packets, progress logs, and evidence are.
 
@@ -57,7 +58,7 @@ Provenance prefers committed summaries. Local review state is useful during revi
 
 ## Private local state
 
-These paths must stay ignored in the harness root:
+These paths must stay ignored or local-only in the harness root:
 
 ```text
 local Pi login/session directory
@@ -67,7 +68,7 @@ node_modules/
 state/tmp/
 ```
 
-Do not commit login state, session files, task history, generated setup prompts, policy audit logs, or memory entries unless they are explicitly sanitized for sharing.
+Do not commit login state, session files, task history, generated setup prompts, policy audit logs, or memory entries unless they are explicitly sanitized for sharing. Local adoption avoids this by putting the whole harness root outside the project checkout.
 
 ## Package manifest
 

@@ -14,19 +14,28 @@ Pi is a small coding-agent runtime with extension points instead of a large bake
 - Context files: `AGENTS.md`/`CLAUDE.md`, plus `.pi/APPEND_SYSTEM.md` or `.pi/SYSTEM.md`.
 - Sessions: saved conversations controlled by `--session-dir`, `PI_CODING_AGENT_SESSION_DIR`, or settings.
 
-## Starting The Lab
+## Starting An Adopted Project
+
+Local mode, default:
 
 ```bash
 cd your-project
-npm run doctor
-./bin/pi-harness
+/path/to/local/pi-harness/.../bin/pi-harness setup
+/path/to/local/pi-harness/.../bin/pi-harness
 ```
 
-The wrapper sets:
+Repo mode or this source checkout:
 
 ```bash
-PI_CODING_AGENT_DIR=.pi-harness/local-pi-state
---session-dir .pi-harness/state/sessions
+npm run doctor
+npm run pi
+```
+
+The wrapper sets local harness state, for example:
+
+```bash
+PI_CODING_AGENT_DIR=<harness-root>/.pi-agent
+--session-dir <harness-root>/state/sessions
 ```
 
 By default it also blocks inherited user resources and explicitly loads only:
@@ -39,19 +48,22 @@ By default it also blocks inherited user resources and explicitly loads only:
 Opt into normal user resources only when debugging:
 
 ```bash
-PI_HARNESS_INHERIT_USER_RESOURCES=1 ./bin/pi-harness
+PI_HARNESS_INHERIT_USER_RESOURCES=1 /path/to/local/pi-harness/.../bin/pi-harness
 ```
 
 Trial reviewed project package extensions without user-level skills or package prompt templates:
 
 ```bash
-PI_HARNESS_ENABLE_PROJECT_PACKAGES=1 ./bin/pi-harness
+PI_HARNESS_ENABLE_PROJECT_PACKAGES=1 /path/to/local/pi-harness/.../bin/pi-harness
 ```
 
-Current reviewed project packages:
+Current reviewed/vendored project packages:
 
 - `pi-mcp-adapter@2.6.0`
 - `pi-subagents@0.24.2`
+- `pi-intercom@0.6.0`
+- `pi-web-access@0.10.7`
+- `pi-prompt-template-model@0.9.3`
 
 Current blocked package:
 
@@ -81,14 +93,14 @@ Useful native Pi session commands:
 Use print mode when you want a single answer or smoke test:
 
 ```bash
-./bin/pi-harness -p "Use harness_status and tell me what tasks exist."
+/path/to/local/pi-harness/.../bin/pi-harness -p "Use harness_status and tell me what tasks exist."
 ```
 
 ## Credentials
 
-Pi credentials for an adopted project are isolated in the ignored harness sidecar state.
+Pi credentials for an adopted project are isolated in the local harness sidecar state.
 
-Do not read or print login/session files. If Pi needs auth, start `npm run pi` and run `/login`.
+Do not read or print login/session files. If Pi needs auth, start the adopted launcher and run `/login`.
 
 API keys can also be provided through environment variables such as:
 

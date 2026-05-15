@@ -19,7 +19,7 @@ Use this skill for non-trivial work in `pi-harness-lab`.
 8. Before any external write-like action, call `harness_record_external_write_intent`; after the write, call `harness_record_external_write_proof` or cancel the intent.
 9. Work in small checkpoints and call `harness_record_progress` after meaningful decisions, blockers, or verification.
 10. Record provenance with `harness_record_provenance` for subagents, reviews, important decisions, and handoffs.
-11. For model/team/research setup questions, prefer `npm run harness:setup` and its generated local prompts instead of separate setup commands or hand-written notes.
+11. For model/team/research setup questions, prefer the adopted harness setup command (`.../bin/pi-harness setup` in local mode, `npm run harness:setup` in repo mode) and its generated local prompts instead of separate setup commands or hand-written notes.
 12. For task-scoped MCP/subagent access, use `harness_policy_profile` and keep profiles narrow/expiring (`mcp-discovery`, `subagent-review`, or exact `mcp-direct-selected` tools). Prefer `clearOnFinish: true` and validate connector classifications with `npm run tool:policy -- metadata --json`.
 13. For peer-review style work, use `harness_review_plan_lane` or dry-run `harness_review_run_lane`, then `harness_review_record_finding`, `harness_review_synthesize`, and `harness_review_doctor`. Prefer read-only project agents `harness-reviewer` and `harness-scout`.
 14. If you need a reusable new tool, call `harness_create_tool_proposal` before implementing it.

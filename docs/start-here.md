@@ -1,0 +1,83 @@
+# Start Here
+
+This page is reference now. The preferred first-run path is the root `README.md`: adopt into your existing project, then run `npm run harness:setup` and `npm run pi`.
+
+You may have used Claude Code, Codex, Cursor, or another AI coding tool. You ask for a change. The model reads files, edits code, maybe runs tests, and gives you a summary.
+
+That works for small things. It gets shaky when the work matters.
+
+The shaky part is not the model. The shaky part is the missing operating system around the model. What was the actual task? What was out of scope? What did the agent check? Did it touch a secret file? Did it install a package? Did it write to GitHub or Jira? Can someone else replay the checks?
+
+This repo is that operating layer.
+
+## The short version
+
+A harness gives an AI coding agent a disciplined way to work:
+
+- start with a clear task
+- stay inside scope
+- block unsafe reads and writes
+- record progress
+- verify the change
+- leave evidence
+- make human approval points explicit
+
+It does not make the agent magic. It makes the work less ad hoc.
+
+## What changes when you use it
+
+Without a harness, a session often starts like this:
+
+> Fix the flaky test.
+
+The agent guesses the scope, makes edits, and reports back. Maybe that is fine. Maybe it quietly changed too much.
+
+With this harness, the same work starts more like this:
+
+> Create a task for the flaky checkout test. Do not change production checkout behavior. Find the cause, make the smallest fix, run the targeted test, then write evidence before finishing.
+
+The agent turns that into a [task packet](explanation/core-concepts.md#task-packet). That is just the written brief for the work. The harness tracks the active task. If the agent tries to read protected local files, policy blocks it. If the agent wants to write to an external system, it needs an [intent and read-back proof](explanation/core-concepts.md#external-write-intent). When the work is done, [finish gates](explanation/core-concepts.md#finish-gate) check [evidence](explanation/core-concepts.md#evidence), package provenance, memory, review lanes, policy, secrets, and evals.
+
+It is more ceremony than a casual prompt. That is the point. Serious agent work needs a paper trail.
+
+If the vocabulary is slowing you down, pause here and read [Core Concepts](explanation/core-concepts.md). It is short, and it will make the rest of the docs easier.
+
+## First commands
+
+From your existing project repo:
+
+```bash
+npx --yes --package github:anhtaiH/pi-harness pi-harness-adopt
+npx --yes --package github:anhtaiH/pi-harness pi-harness-adopt -- --apply
+npm run harness:setup -- --apply --install
+npm run pi
+```
+
+What those commands mean:
+
+- `pi-harness-adopt` plans/applies a `.pi-harness/` sidecar and a few npm scripts in your existing project.
+- `npm run harness:setup -- --apply --install` installs the sidecar lockfile, bootstraps local state, shows model/team/research batteries, runs checks, and writes Pi handoff prompts.
+- `npm run pi` starts Pi in your project with this harness loaded.
+
+Inside Pi:
+
+```text
+/harness-status
+/harness-new fix-flaky-checkout-test
+```
+
+Then ask the agent to use the harness skill:
+
+```text
+Use the harness workflow. Scope this task before editing, record progress, run checks, and write evidence before finishing.
+```
+
+## What to read next
+
+If the terms are new, read [Core Concepts](explanation/core-concepts.md).
+
+If the idea is new, read [What Is an Agent Harness?](explanation/what-is-an-agent-harness.md).
+
+If you want to do real work now, read [First Real Task](tutorials/first-real-task.md).
+
+If you are trying to adopt this in another project, read [Adapt the Harness to Your Repo](tutorials/adapt-to-your-repo.md).

@@ -1,0 +1,71 @@
+{
+  "spec": "npm:pi-intercom@0.6.0",
+  "name": "pi-intercom",
+  "version": "0.6.0",
+  "tarball": "vendor/npm/pi-intercom-0.6.0.tgz",
+  "reviewDir": "package-reviews/pi-intercom_0.6.0",
+  "size": 41492,
+  "unpackedSize": 173437,
+  "fileCount": 18,
+  "license": "MIT",
+  "bin": null,
+  "scripts": {
+    "test": "tsx --test broker/paths.test.ts broker/spawn.test.ts reply-tracker.test.ts intercom.integration.test.ts test/inline-message.test.ts"
+  },
+  "lifecycleScripts": [],
+  "dependencyCount": 2,
+  "peerDependencyCount": 2,
+  "piResources": {
+    "manifest": {
+      "extensions": [
+        "./index.ts"
+      ],
+      "skills": [
+        "./skills"
+      ]
+    },
+    "conventionDirs": [
+      "skills"
+    ]
+  },
+  "signals": [
+    {
+      "file": "README.md",
+      "signal": "process execution"
+    },
+    {
+      "file": "broker/broker.ts",
+      "signal": "filesystem mutation"
+    },
+    {
+      "file": "broker/paths.ts",
+      "signal": "credential path reference"
+    },
+    {
+      "file": "broker/spawn.test.ts",
+      "signal": "process execution"
+    },
+    {
+      "file": "broker/spawn.ts",
+      "signal": "process execution"
+    },
+    {
+      "file": "config.ts",
+      "signal": "process execution"
+    },
+    {
+      "file": "index.ts",
+      "signal": "process execution"
+    },
+    {
+      "file": "package.json",
+      "signal": "process execution"
+    },
+    {
+      "file": "skills/pi-intercom/SKILL.md",
+      "signal": "process execution"
+    }
+  ],
+  "verdict": "trial-ok-after-source-spot-check",
+  "reviewedAt": "2026-05-15T04:33:43.098Z"
+}

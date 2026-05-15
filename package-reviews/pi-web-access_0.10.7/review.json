@@ -1,0 +1,116 @@
+{
+  "spec": "npm:pi-web-access@0.10.7",
+  "name": "pi-web-access",
+  "version": "0.10.7",
+  "tarball": "vendor/npm/pi-web-access-0.10.7.tgz",
+  "reviewDir": "package-reviews/pi-web-access_0.10.7",
+  "size": 6402712,
+  "unpackedSize": 6852655,
+  "fileCount": 32,
+  "license": "MIT",
+  "bin": null,
+  "scripts": {
+    "test": "node --test"
+  },
+  "lifecycleScripts": [],
+  "dependencyCount": 5,
+  "peerDependencyCount": 0,
+  "piResources": {
+    "manifest": {
+      "extensions": [
+        "./index.ts"
+      ],
+      "skills": [
+        "./skills"
+      ],
+      "video": "https://github.com/nicobailon/pi-web-access/raw/refs/heads/main/pi-web-fetch-demo.mp4"
+    },
+    "conventionDirs": [
+      "skills"
+    ]
+  },
+  "signals": [
+    {
+      "file": "CHANGELOG.md",
+      "signal": "process execution"
+    },
+    {
+      "file": "README.md",
+      "signal": "keychain access"
+    },
+    {
+      "file": "chrome-cookies.ts",
+      "signal": "process execution"
+    },
+    {
+      "file": "curator-page.ts",
+      "signal": "network access"
+    },
+    {
+      "file": "exa.ts",
+      "signal": "filesystem mutation"
+    },
+    {
+      "file": "extract.ts",
+      "signal": "network access"
+    },
+    {
+      "file": "gemini-api.ts",
+      "signal": "environment access"
+    },
+    {
+      "file": "gemini-search.ts",
+      "signal": "credential path reference"
+    },
+    {
+      "file": "gemini-url-context.ts",
+      "signal": "network access"
+    },
+    {
+      "file": "gemini-web-config.ts",
+      "signal": "environment access"
+    },
+    {
+      "file": "gemini-web.ts",
+      "signal": "network access"
+    },
+    {
+      "file": "github-api.ts",
+      "signal": "process execution"
+    },
+    {
+      "file": "github-extract.ts",
+      "signal": "process execution"
+    },
+    {
+      "file": "index.ts",
+      "signal": "process execution"
+    },
+    {
+      "file": "pdf-extract.ts",
+      "signal": "filesystem mutation"
+    },
+    {
+      "file": "perplexity.ts",
+      "signal": "environment access"
+    },
+    {
+      "file": "test/gemini-web-cookie-opt-in.test.mjs",
+      "signal": "process execution"
+    },
+    {
+      "file": "test/pdf-extract.test.mjs",
+      "signal": "process execution"
+    },
+    {
+      "file": "video-extract.ts",
+      "signal": "process execution"
+    },
+    {
+      "file": "youtube-extract.ts",
+      "signal": "process execution"
+    }
+  ],
+  "verdict": "trial-ok-after-source-spot-check",
+  "reviewedAt": "2026-05-15T04:33:42.683Z"
+}

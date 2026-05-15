@@ -1,0 +1,55 @@
+{
+  "spec": "npm:pi-prompt-template-model@0.9.3",
+  "name": "pi-prompt-template-model",
+  "version": "0.9.3",
+  "tarball": "vendor/npm/pi-prompt-template-model-0.9.3.tgz",
+  "reviewDir": "package-reviews/pi-prompt-template-model_0.9.3",
+  "size": 1299858,
+  "unpackedSize": 1550754,
+  "fileCount": 24,
+  "license": "MIT",
+  "bin": null,
+  "scripts": {
+    "test": "tsx --test test/**/*.test.ts"
+  },
+  "lifecycleScripts": [],
+  "dependencyCount": 1,
+  "peerDependencyCount": 0,
+  "piResources": {
+    "manifest": {
+      "extensions": [
+        "./index.ts"
+      ],
+      "skills": [
+        "./skills"
+      ]
+    },
+    "conventionDirs": [
+      "skills"
+    ]
+  },
+  "signals": [
+    {
+      "file": "deterministic-step.ts",
+      "signal": "process execution"
+    },
+    {
+      "file": "prompt-loader.ts",
+      "signal": "credential path reference"
+    },
+    {
+      "file": "subagent-runtime.ts",
+      "signal": "environment access"
+    },
+    {
+      "file": "subagent-step.ts",
+      "signal": "environment access"
+    },
+    {
+      "file": "tool-manager.ts",
+      "signal": "filesystem mutation"
+    }
+  ],
+  "verdict": "trial-ok-after-source-spot-check",
+  "reviewedAt": "2026-05-15T04:33:43.597Z"
+}

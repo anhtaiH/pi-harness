@@ -1,0 +1,108 @@
+{
+  "spec": "npm:pi-mcp-adapter@2.6.0",
+  "name": "pi-mcp-adapter",
+  "version": "2.6.0",
+  "tarball": "vendor/npm/pi-mcp-adapter-2.6.0.tgz",
+  "reviewDir": "package-reviews/pi-mcp-adapter_2.6.0",
+  "size": 1312559,
+  "unpackedSize": 1835136,
+  "fileCount": 43,
+  "license": "MIT",
+  "bin": {
+    "pi-mcp-adapter": "cli.js"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:oauth-provider": "node --import tsx --test mcp-oauth-provider.test.ts"
+  },
+  "lifecycleScripts": [],
+  "dependencyCount": 7,
+  "peerDependencyCount": 1,
+  "piResources": {
+    "manifest": {
+      "extensions": [
+        "./index.ts"
+      ],
+      "video": "https://github.com/nicobailon/pi-mcp-adapter/raw/refs/heads/main/pi-mcp.mp4"
+    },
+    "conventionDirs": []
+  },
+  "signals": [
+    {
+      "file": "agent-dir.ts",
+      "signal": "environment access"
+    },
+    {
+      "file": "app-bridge.bundle.js",
+      "signal": "filesystem mutation"
+    },
+    {
+      "file": "cli.js",
+      "signal": "filesystem mutation"
+    },
+    {
+      "file": "config.ts",
+      "signal": "filesystem mutation"
+    },
+    {
+      "file": "glimpse-ui.ts",
+      "signal": "process execution"
+    },
+    {
+      "file": "host-html-template.ts",
+      "signal": "network access"
+    },
+    {
+      "file": "index.ts",
+      "signal": "environment access"
+    },
+    {
+      "file": "init.ts",
+      "signal": "environment access"
+    },
+    {
+      "file": "logger.ts",
+      "signal": "environment access"
+    },
+    {
+      "file": "mcp-auth.ts",
+      "signal": "filesystem mutation"
+    },
+    {
+      "file": "mcp-oauth-provider.ts",
+      "signal": "environment access"
+    },
+    {
+      "file": "metadata-cache.ts",
+      "signal": "filesystem mutation"
+    },
+    {
+      "file": "npx-resolver.ts",
+      "signal": "process execution"
+    },
+    {
+      "file": "oauth-handler.ts",
+      "signal": "environment access"
+    },
+    {
+      "file": "onboarding-state.ts",
+      "signal": "filesystem mutation"
+    },
+    {
+      "file": "server-manager.ts",
+      "signal": "environment access"
+    },
+    {
+      "file": "ui-session.ts",
+      "signal": "environment access"
+    },
+    {
+      "file": "utils.ts",
+      "signal": "process execution"
+    }
+  ],
+  "verdict": "trial-ok-after-source-spot-check",
+  "reviewedAt": "2026-05-12T20:37:47.595Z"
+}

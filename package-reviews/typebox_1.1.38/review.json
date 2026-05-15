@@ -1,0 +1,32 @@
+{
+  "spec": "npm:typebox@1.1.38",
+  "name": "typebox",
+  "version": "1.1.38",
+  "tarball": "vendor/npm/typebox-1.1.38.tgz",
+  "reviewDir": "package-reviews/typebox_1.1.38",
+  "size": 258799,
+  "unpackedSize": 1468289,
+  "fileCount": 1383,
+  "license": "MIT",
+  "bin": null,
+  "scripts": {},
+  "lifecycleScripts": [],
+  "dependencyCount": 0,
+  "peerDependencyCount": 0,
+  "piResources": {
+    "manifest": {},
+    "conventionDirs": []
+  },
+  "signals": [
+    {
+      "file": "build/format/date.mjs",
+      "signal": "process execution"
+    },
+    {
+      "file": "build/format/time.mjs",
+      "signal": "process execution"
+    }
+  ],
+  "verdict": "trial-ok-after-source-spot-check",
+  "reviewedAt": "2026-05-12T20:37:03.662Z"
+}

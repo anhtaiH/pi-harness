@@ -1,0 +1,360 @@
+{
+  "spec": "npm:@earendil-works/pi-coding-agent@0.74.0",
+  "name": "@earendil-works/pi-coding-agent",
+  "version": "0.74.0",
+  "tarball": "vendor/npm/earendil-works-pi-coding-agent-0.74.0.tgz",
+  "reviewDir": "package-reviews/earendil-works_pi-coding-agent_0.74.0",
+  "size": 4564493,
+  "unpackedSize": 11236386,
+  "fileCount": 711,
+  "license": "MIT",
+  "bin": {
+    "pi": "dist/cli.js"
+  },
+  "scripts": {
+    "clean": "shx rm -rf dist",
+    "dev": "tsgo -p tsconfig.build.json --watch --preserveWatchOutput",
+    "build": "tsgo -p tsconfig.build.json && shx chmod +x dist/cli.js && npm run copy-assets",
+    "build:binary": "npm --prefix ../tui run build && npm --prefix ../ai run build && npm --prefix ../agent run build && npm run build && bun build --compile ./dist/bun/cli.js --outfile dist/pi && npm run copy-binary-assets",
+    "copy-assets": "shx mkdir -p dist/modes/interactive/theme && shx cp src/modes/interactive/theme/*.json dist/modes/interactive/theme/ && shx mkdir -p dist/modes/interactive/assets && shx cp src/modes/interactive/assets/*.png dist/modes/interactive/assets/ && shx mkdir -p dist/core/export-html/vendor && shx cp src/core/export-html/template.html src/core/export-html/template.css src/core/export-html/template.js dist/core/export-html/ && shx cp src/core/export-html/vendor/*.js dist/core/export-html/vendor/",
+    "copy-binary-assets": "shx cp package.json dist/ && shx cp README.md dist/ && shx cp CHANGELOG.md dist/ && shx mkdir -p dist/theme && shx cp src/modes/interactive/theme/*.json dist/theme/ && shx mkdir -p dist/assets && shx cp src/modes/interactive/assets/*.png dist/assets/ && shx mkdir -p dist/export-html/vendor && shx cp src/core/export-html/template.html dist/export-html/ && shx cp src/core/export-html/vendor/*.js dist/export-html/vendor/ && shx cp -r docs dist/ && shx cp -r examples dist/ && shx cp ../../node_modules/@silvia-odwyer/photon-node/photon_rs_bg.wasm dist/",
+    "test": "vitest --run",
+    "prepublishOnly": "npm run clean && npm run build"
+  },
+  "lifecycleScripts": [
+    [
+      "prepublishOnly",
+      "npm run clean && npm run build"
+    ]
+  ],
+  "dependencyCount": 21,
+  "peerDependencyCount": 0,
+  "piResources": {
+    "manifest": {},
+    "conventionDirs": []
+  },
+  "signals": [
+    {
+      "file": "CHANGELOG.md",
+      "signal": "process execution"
+    },
+    {
+      "file": "README.md",
+      "signal": "process execution"
+    },
+    {
+      "file": "dist/bun/restore-sandbox-env.d.ts",
+      "signal": "environment access"
+    },
+    {
+      "file": "dist/bun/restore-sandbox-env.js",
+      "signal": "environment access"
+    },
+    {
+      "file": "dist/cli.js",
+      "signal": "environment access"
+    },
+    {
+      "file": "dist/config.d.ts",
+      "signal": "credential path reference"
+    },
+    {
+      "file": "dist/config.js",
+      "signal": "process execution"
+    },
+    {
+      "file": "dist/core/agent-session-services.js",
+      "signal": "credential path reference"
+    },
+    {
+      "file": "dist/core/agent-session.js",
+      "signal": "filesystem mutation"
+    },
+    {
+      "file": "dist/core/auth-storage.d.ts",
+      "signal": "credential path reference"
+    },
+    {
+      "file": "dist/core/auth-storage.js",
+      "signal": "filesystem mutation"
+    },
+    {
+      "file": "dist/core/bash-executor.js",
+      "signal": "process execution"
+    },
+    {
+      "file": "dist/core/exec.d.ts",
+      "signal": "process execution"
+    },
+    {
+      "file": "dist/core/exec.js",
+      "signal": "process execution"
+    },
+    {
+      "file": "dist/core/export-html/ansi-to-html.js",
+      "signal": "process execution"
+    },
+    {
+      "file": "dist/core/export-html/index.js",
+      "signal": "filesystem mutation"
+    },
+    {
+      "file": "dist/core/export-html/template.js",
+      "signal": "process execution"
+    },
+    {
+      "file": "dist/core/export-html/vendor/highlight.min.js",
+      "signal": "process execution"
+    },
+    {
+      "file": "dist/core/export-html/vendor/marked.min.js",
+      "signal": "process execution"
+    },
+    {
+      "file": "dist/core/extensions/loader.js",
+      "signal": "process execution"
+    },
+    {
+      "file": "dist/core/extensions/types.d.ts",
+      "signal": "process execution"
+    },
+    {
+      "file": "dist/core/footer-data-provider.js",
+      "signal": "process execution"
+    },
+    {
+      "file": "dist/core/model-registry.js",
+      "signal": "environment access"
+    },
+    {
+      "file": "dist/core/package-manager.js",
+      "signal": "process execution"
+    },
+    {
+      "file": "dist/core/prompt-templates.js",
+      "signal": "credential path reference"
+    },
+    {
+      "file": "dist/core/resolve-config-value.js",
+      "signal": "process execution"
+    },
+    {
+      "file": "dist/core/resource-loader.js",
+      "signal": "credential path reference"
+    },
+    {
+      "file": "dist/core/sdk.d.ts",
+      "signal": "credential path reference"
+    },
+    {
+      "file": "dist/core/sdk.js",
+      "signal": "credential path reference"
+    },
+    {
+      "file": "dist/core/session-manager.js",
+      "signal": "filesystem mutation"
+    },
+    {
+      "file": "dist/core/settings-manager.js",
+      "signal": "filesystem mutation"
+    },
+    {
+      "file": "dist/core/skills.js",
+      "signal": "credential path reference"
+    },
+    {
+      "file": "dist/core/telemetry.js",
+      "signal": "environment access"
+    },
+    {
+      "file": "dist/core/timings.js",
+      "signal": "environment access"
+    },
+    {
+      "file": "dist/core/tools/bash.d.ts",
+      "signal": "process execution"
+    },
+    {
+      "file": "dist/core/tools/bash.js",
+      "signal": "process execution"
+    },
+    {
+      "file": "dist/core/tools/edit.d.ts",
+      "signal": "filesystem mutation"
+    },
+    {
+      "file": "dist/core/tools/edit.js",
+      "signal": "filesystem mutation"
+    },
+    {
+      "file": "dist/core/tools/find.js",
+      "signal": "process execution"
+    },
+    {
+      "file": "dist/core/tools/grep.js",
+      "signal": "process execution"
+    },
+    {
+      "file": "dist/core/tools/path-utils.js",
+      "signal": "credential path reference"
+    },
+    {
+      "file": "dist/core/tools/render-utils.js",
+      "signal": "credential path reference"
+    },
+    {
+      "file": "dist/core/tools/write.d.ts",
+      "signal": "filesystem mutation"
+    },
+    {
+      "file": "dist/core/tools/write.js",
+      "signal": "filesystem mutation"
+    },
+    {
+      "file": "dist/main.js",
+      "signal": "environment access"
+    },
+    {
+      "file": "dist/migrations.d.ts",
+      "signal": "credential path reference"
+    },
+    {
+      "file": "dist/migrations.js",
+      "signal": "filesystem mutation"
+    },
+    {
+      "file": "dist/modes/interactive/components/extension-editor.js",
+      "signal": "process execution"
+    },
+    {
+      "file": "dist/modes/interactive/components/footer.js",
+      "signal": "environment access"
+    },
+    {
+      "file": "dist/modes/interactive/components/login-dialog.js",
+      "signal": "process execution"
+    },
+    {
+      "file": "dist/modes/interactive/components/session-selector.js",
+      "signal": "process execution"
+    },
+    {
+      "file": "dist/modes/interactive/components/tree-selector.js",
+      "signal": "environment access"
+    },
+    {
+      "file": "dist/modes/interactive/interactive-mode.d.ts",
+      "signal": "credential path reference"
+    },
+    {
+      "file": "dist/modes/interactive/interactive-mode.js",
+      "signal": "process execution"
+    },
+    {
+      "file": "dist/modes/interactive/theme/theme.js",
+      "signal": "environment access"
+    },
+    {
+      "file": "dist/modes/rpc/rpc-client.js",
+      "signal": "process execution"
+    },
+    {
+      "file": "dist/package-manager-cli.js",
+      "signal": "process execution"
+    },
+    {
+      "file": "dist/utils/child-process.d.ts",
+      "signal": "process execution"
+    },
+    {
+      "file": "dist/utils/clipboard-image.js",
+      "signal": "process execution"
+    },
+    {
+      "file": "dist/utils/clipboard-native.js",
+      "signal": "environment access"
+    },
+    {
+      "file": "dist/utils/clipboard.js",
+      "signal": "process execution"
+    },
+    {
+      "file": "dist/utils/shell.js",
+      "signal": "process execution"
+    },
+    {
+      "file": "dist/utils/tools-manager.js",
+      "signal": "process execution"
+    },
+    {
+      "file": "dist/utils/version-check.js",
+      "signal": "environment access"
+    },
+    {
+      "file": "docs/custom-provider.md",
+      "signal": "credential path reference"
+    },
+    {
+      "file": "docs/extensions.md",
+      "signal": "process execution"
+    },
+    {
+      "file": "docs/models.md",
+      "signal": "keychain access"
+    },
+    {
+      "file": "docs/packages.md",
+      "signal": "process execution"
+    },
+    {
+      "file": "docs/providers.md",
+      "signal": "credential path reference"
+    },
+    {
+      "file": "docs/quickstart.md",
+      "signal": "credential path reference"
+    },
+    {
+      "file": "docs/rpc.md",
+      "signal": "process execution"
+    },
+    {
+      "file": "docs/sdk.md",
+      "signal": "process execution"
+    },
+    {
+      "file": "docs/settings.md",
+      "signal": "process execution"
+    },
+    {
+      "file": "examples/extensions/README.md",
+      "signal": "filesystem mutation"
+    },
+    {
+      "file": "examples/extensions/auto-commit-on-exit.ts",
+      "signal": "process execution"
+    },
+    {
+      "file": "examples/extensions/bash-spawn-hook.ts",
+      "signal": "process execution"
+    },
+    {
+      "file": "examples/extensions/border-status-editor.ts",
+      "signal": "process execution"
+    },
+    {
+      "file": "examples/extensions/custom-provider-anthropic/index.ts",
+      "signal": "network access"
+    },
+    {
+      "file": "examples/extensions/custom-provider-gitlab-duo/index.ts",
+      "signal": "network access"
+    },
+    {
+      "file": "examples/extensions/custom-provider-gitlab-duo/test.ts",
+      "signal": "credential path reference"
+    }
+  ],
+  "verdict": "blocked",
+  "reviewedAt": "2026-05-14T19:14:08.445Z"
+}

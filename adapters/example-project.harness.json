@@ -1,0 +1,44 @@
+{
+  "version": 1,
+  "name": "example-project",
+  "description": "Non-secret template for adapting the portable Pi harness to one project.",
+  "projectRoot": "..",
+  "riskDefault": "yellow",
+  "docs": [
+    "README.md",
+    "docs/architecture.md"
+  ],
+  "checks": [
+    {
+      "id": "typecheck",
+      "command": "npm run typecheck",
+      "readOnly": true
+    },
+    {
+      "id": "tests",
+      "command": "npm test",
+      "readOnly": true
+    }
+  ],
+  "connectors": {
+    "mcp": {
+      "discoveryProfile": "mcp-discovery",
+      "selectedToolProfile": "mcp-direct-selected",
+      "metadataSource": "harness.config.json#toolPolicy.toolMetadata",
+      "rules": [
+        "Use exact direct tool names only.",
+        "Classify each tool as read-only or write-like before selecting it.",
+        "Record external-write intent and proof for write-like actions."
+      ]
+    }
+  },
+  "reviewAgents": [
+    "harness-reviewer",
+    "harness-scout"
+  ],
+  "stopConditions": [
+    "Stop if private material is required.",
+    "Stop if production-affecting action is required without approval.",
+    "Stop if a connector tool has unknown read/write behavior."
+  ]
+}

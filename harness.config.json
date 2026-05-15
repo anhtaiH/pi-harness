@@ -1,0 +1,105 @@
+{
+  "name": "pi-harness-lab",
+  "version": "0.1.0",
+  "stateDir": "state",
+  "taskDir": "state/tasks",
+  "sessionDir": "state/sessions",
+  "safety": {
+    "noSecretReads": true,
+    "externalWritesRequireIntent": true,
+    "evidenceBeforeDone": true
+  },
+  "toolPolicy": {
+    "defaultMode": "strict",
+    "runtimeEnforcement": true,
+    "allowlist": [
+      "harness_*",
+      "read",
+      "grep",
+      "find",
+      "ls",
+      "bash",
+      "edit",
+      "write"
+    ],
+    "riskyTools": [
+      "bash",
+      "edit",
+      "write"
+    ],
+    "hardDenyPathPatterns": [
+      ".env*",
+      ".npmrc",
+      ".netrc",
+      ".ssh/*",
+      "*auth.json",
+      "*token*",
+      "*credential*",
+      ".pi-agent/*",
+      ".gemini/*",
+      ".codex/*",
+      ".claude/*"
+    ],
+    "externalWritesRequireIntent": true,
+    "toolMetadata": {
+      "sandbox_docs_search": {
+        "readOnly": true,
+        "externalWrite": false,
+        "description": "Local mock MCP read-only docs search used by evals.",
+        "owner": "pi-harness"
+      },
+      "sandbox_status": {
+        "readOnly": true,
+        "externalWrite": false,
+        "description": "Local mock MCP read-only status fixture used by evals.",
+        "owner": "pi-harness"
+      },
+      "sandbox_issue_comment": {
+        "readOnly": false,
+        "externalWrite": true,
+        "description": "Local mock MCP write-like issue comment used by evals.",
+        "owner": "pi-harness"
+      },
+      "github_issues_list": {
+        "readOnly": true,
+        "externalWrite": false,
+        "description": "Example GitHub-style issue listing/search tool; safe only for non-secret queries.",
+        "owner": "connector-metadata-template"
+      },
+      "github_issue_comment": {
+        "readOnly": false,
+        "externalWrite": true,
+        "description": "Example GitHub-style issue comment tool; requires external-write intent before execution.",
+        "owner": "connector-metadata-template"
+      },
+      "jira_search": {
+        "readOnly": true,
+        "externalWrite": false,
+        "description": "Example Jira-style search tool; safe only for non-secret queries.",
+        "owner": "connector-metadata-template"
+      },
+      "jira_transition_issue": {
+        "readOnly": false,
+        "externalWrite": true,
+        "description": "Example Jira-style transition/update tool; requires external-write intent before execution.",
+        "owner": "connector-metadata-template"
+      },
+      "slack_search": {
+        "readOnly": true,
+        "externalWrite": false,
+        "description": "Example Slack-style search tool; safe only for non-secret queries.",
+        "owner": "connector-metadata-template"
+      },
+      "slack_post_message": {
+        "readOnly": false,
+        "externalWrite": true,
+        "description": "Example Slack-style post tool; requires external-write intent before execution.",
+        "owner": "connector-metadata-template"
+      }
+    }
+  },
+  "evals": {
+    "caseDir": "evals",
+    "latestResult": "state/evals/latest.json"
+  }
+}

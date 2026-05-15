@@ -1,0 +1,137 @@
+{
+  "generatedAt": "2026-05-15T04:42:51.908Z",
+  "packages": [
+    {
+      "kind": "pi-package",
+      "spec": "npm:pi-mcp-adapter@2.6.0",
+      "installedName": "pi-mcp-adapter",
+      "installedVersion": "2.6.0",
+      "availability": "installed",
+      "reviewVerdict": "trial-ok-after-source-spot-check",
+      "reviewedAt": "2026-05-12T20:37:47.595Z",
+      "reviewDir": "package-reviews/pi-mcp-adapter_2.6.0",
+      "vendor": {
+        "tarball": "vendor/npm/pi-mcp-adapter-2.6.0.tgz",
+        "sha256": "9ce463631b73c8f93329dd3f5b4ef7ebfa16cc7b97a7f8e02fd5ad9a8bb72fb1",
+        "exists": true,
+        "sha256Matches": true,
+        "approvalId": null
+      },
+      "manualApproval": null
+    },
+    {
+      "kind": "pi-package",
+      "spec": "npm:pi-subagents@0.24.2",
+      "installedName": "pi-subagents",
+      "installedVersion": "0.24.2",
+      "availability": "installed",
+      "reviewVerdict": "trial-ok-after-source-spot-check",
+      "reviewedAt": "2026-05-12T20:37:48.008Z",
+      "reviewDir": "package-reviews/pi-subagents_0.24.2",
+      "vendor": {
+        "tarball": "vendor/npm/pi-subagents-0.24.2.tgz",
+        "sha256": "cc784374d0918cc5234686ed2a909f1e4186c59da514dddd0efd9f00207a5cb3",
+        "exists": true,
+        "sha256Matches": true,
+        "approvalId": null
+      },
+      "manualApproval": null
+    },
+    {
+      "kind": "pi-package",
+      "spec": "npm:pi-intercom@0.6.0",
+      "installedName": null,
+      "installedVersion": "0.6.0",
+      "availability": "vendored",
+      "reviewVerdict": "trial-ok-after-source-spot-check",
+      "reviewedAt": "2026-05-15T04:33:43.098Z",
+      "reviewDir": "package-reviews/pi-intercom_0.6.0",
+      "vendor": {
+        "tarball": "vendor/npm/pi-intercom-0.6.0.tgz",
+        "sha256": "76c0d5284661aac437248bb6c7a32879fe863296bd15cb533751b27cafc44818",
+        "exists": true,
+        "sha256Matches": true,
+        "approvalId": null
+      },
+      "manualApproval": null
+    },
+    {
+      "kind": "pi-package",
+      "spec": "npm:pi-web-access@0.10.7",
+      "installedName": null,
+      "installedVersion": "0.10.7",
+      "availability": "vendored",
+      "reviewVerdict": "trial-ok-after-source-spot-check",
+      "reviewedAt": "2026-05-15T04:33:42.683Z",
+      "reviewDir": "package-reviews/pi-web-access_0.10.7",
+      "vendor": {
+        "tarball": "vendor/npm/pi-web-access-0.10.7.tgz",
+        "sha256": "bf4090c5cd93c92c1d94660285addc6b34293201d009a8a98c65695b8f47d8f9",
+        "exists": true,
+        "sha256Matches": true,
+        "approvalId": null
+      },
+      "manualApproval": null
+    },
+    {
+      "kind": "pi-package",
+      "spec": "npm:pi-prompt-template-model@0.9.3",
+      "installedName": null,
+      "installedVersion": "0.9.3",
+      "availability": "vendored",
+      "reviewVerdict": "trial-ok-after-source-spot-check",
+      "reviewedAt": "2026-05-15T04:33:43.597Z",
+      "reviewDir": "package-reviews/pi-prompt-template-model_0.9.3",
+      "vendor": {
+        "tarball": "vendor/npm/pi-prompt-template-model-0.9.3.tgz",
+        "sha256": "755b66053db38c9110cb57ffaeddbec8d6d6d13b9f41b97db1b32adf35f8d807",
+        "exists": true,
+        "sha256Matches": true,
+        "approvalId": null
+      },
+      "manualApproval": null
+    },
+    {
+      "kind": "runtime-dependency",
+      "spec": "npm:typebox@1.1.38",
+      "installedName": "typebox",
+      "installedVersion": "1.1.38",
+      "availability": "installed",
+      "reviewVerdict": "trial-ok-after-source-spot-check",
+      "reviewedAt": "2026-05-12T20:37:03.662Z",
+      "reviewDir": "package-reviews/typebox_1.1.38",
+      "vendor": {
+        "tarball": "vendor/npm/typebox-1.1.38.tgz",
+        "sha256": "e30ce34413fb0b27e272e39429edede31b7dc8be245df7afc73455820ace6d35",
+        "exists": true,
+        "sha256Matches": true,
+        "approvalId": null
+      },
+      "manualApproval": null
+    },
+    {
+      "kind": "manual-approval-package",
+      "spec": "npm:@earendil-works/pi-coding-agent@0.74.0",
+      "installedName": "@earendil-works/pi-coding-agent",
+      "installedVersion": "0.74.0",
+      "availability": "installed",
+      "reviewVerdict": "blocked",
+      "reviewedAt": "2026-05-14T19:14:08.445Z",
+      "reviewDir": "package-reviews/earendil-works_pi-coding-agent_0.74.0",
+      "vendor": {
+        "tarball": "vendor/npm/earendil-works-pi-coding-agent-0.74.0.tgz",
+        "sha256": "974a73b96195bd7d630e115869ecb5e0dd7a5c3a38ee4926dc99448663d4a344",
+        "exists": true,
+        "sha256Matches": true,
+        "approvalId": "manual-earendil-works-pi-coding-agent-0-74-0-20260514215623"
+      },
+      "manualApproval": {
+        "id": "manual-earendil-works-pi-coding-agent-0-74-0-20260514215623",
+        "reviewer": "taihuynh",
+        "approvedAt": "2026-05-14T21:56:29.313Z",
+        "expiresAt": "2026-08-12T21:56:29.313Z",
+        "scope": "Repo-local Pi CLI pin for pi-harness-lab only."
+      }
+    }
+  ]
+}

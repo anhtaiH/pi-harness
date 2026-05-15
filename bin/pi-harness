@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+HARNESS_ROOT="$ROOT"
+if [[ -n "${PI_HARNESS_PROJECT_ROOT:-}" ]]; then
+  PROJECT_ROOT="$(cd "$PI_HARNESS_PROJECT_ROOT" && pwd)"
+elif [[ "$(basename "$HARNESS_ROOT")" == ".pi-harness" ]]; then
+  PROJECT_ROOT="$(cd "$HARNESS_ROOT/.." && pwd)"
+else
+  PROJECT_ROOT="$HARNESS_ROOT"
+fi
+
+LOCAL_PI="$HARNESS_ROOT/node_modules/.bin/pi"
+if [[ -x "$LOCAL_PI" ]]; then
+  PI_BIN="$LOCAL_PI"
+else
+  PI_BIN="$(command -v pi || true)"
+fi
+if [[ -z "${PI_BIN:-}" ]]; then
+  echo "Pi CLI not found. Run npm run harness:setup -- --apply --install, then retry." >&2
+  exit 1
+fi
+
+mkdir -p "$HARNESS_ROOT/.pi-agent" "$HARNESS_ROOT/state/sessions" "$HARNESS_ROOT/state/tasks"
+
+export PI_HARNESS_ROOT="$HARNESS_ROOT"
+export PI_HARNESS_PROJECT_ROOT="$PROJECT_ROOT"
+export PI_CODING_AGENT_DIR="${PI_CODING_AGENT_DIR:-$HARNESS_ROOT/.pi-agent}"
+
+cd "$HARNESS_ROOT"
+
+case "${1:-}" in
+  install|remove|uninstall|update|list|config)
+    exec "$PI_BIN" "$@"
+    ;;
+esac
+
+cd "$PROJECT_ROOT"
+
+ARGS=(--session-dir "$HARNESS_ROOT/state/sessions")
+
+if [[ "${PI_HARNESS_INHERIT_USER_RESOURCES:-0}" != "1" ]]; then
+  if [[ "${PI_HARNESS_ENABLE_PROJECT_PACKAGES:-0}" == "1" ]]; then
+    ARGS+=(
+      --no-skills
+      --skill "$HARNESS_ROOT/.pi/skills/harness"
+      --no-prompt-templates
+      --prompt-template "$HARNESS_ROOT/.pi/prompts"
+      --no-themes
+    )
+  else
+    ARGS+=(
+      --no-extensions
+      --extension "$HARNESS_ROOT/.pi/extensions/harness/index.ts"
+      --no-skills
+      --skill "$HARNESS_ROOT/.pi/skills/harness"
+      --no-prompt-templates
+      --prompt-template "$HARNESS_ROOT/.pi/prompts"
+      --no-themes
+    )
+  fi
+fi
+
+exec "$PI_BIN" "${ARGS[@]}" "$@"

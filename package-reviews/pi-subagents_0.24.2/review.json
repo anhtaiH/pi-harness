@@ -1,0 +1,152 @@
+{
+  "spec": "npm:pi-subagents@0.24.2",
+  "name": "pi-subagents",
+  "version": "0.24.2",
+  "tarball": "vendor/npm/pi-subagents-0.24.2.tgz",
+  "reviewDir": "package-reviews/pi-subagents_0.24.2",
+  "size": 242742,
+  "unpackedSize": 969577,
+  "fileCount": 81,
+  "license": "MIT",
+  "bin": {
+    "pi-subagents": "install.mjs"
+  },
+  "scripts": {
+    "test": "npm run test:unit",
+    "test:unit": "node --experimental-strip-types --test test/unit/*.test.ts",
+    "test:integration": "node --experimental-transform-types --import ./test/support/register-loader.mjs --test test/integration/*.test.ts",
+    "test:all": "npm run test:unit && npm run test:integration"
+  },
+  "lifecycleScripts": [],
+  "dependencyCount": 2,
+  "peerDependencyCount": 4,
+  "piResources": {
+    "manifest": {
+      "extensions": [
+        "./src/extension/index.ts"
+      ],
+      "skills": [
+        "./skills"
+      ],
+      "prompts": [
+        "./prompts"
+      ]
+    },
+    "conventionDirs": [
+      "skills",
+      "prompts"
+    ]
+  },
+  "signals": [
+    {
+      "file": "CHANGELOG.md",
+      "signal": "process execution"
+    },
+    {
+      "file": "README.md",
+      "signal": "credential path reference"
+    },
+    {
+      "file": "install.mjs",
+      "signal": "process execution"
+    },
+    {
+      "file": "src/agents/agent-management.ts",
+      "signal": "filesystem mutation"
+    },
+    {
+      "file": "src/agents/agents.ts",
+      "signal": "filesystem mutation"
+    },
+    {
+      "file": "src/agents/skills.ts",
+      "signal": "process execution"
+    },
+    {
+      "file": "src/extension/index.ts",
+      "signal": "filesystem mutation"
+    },
+    {
+      "file": "src/intercom/intercom-bridge.ts",
+      "signal": "process execution"
+    },
+    {
+      "file": "src/runs/background/async-execution.ts",
+      "signal": "process execution"
+    },
+    {
+      "file": "src/runs/background/result-watcher.ts",
+      "signal": "filesystem mutation"
+    },
+    {
+      "file": "src/runs/background/stale-run-reconciler.ts",
+      "signal": "filesystem mutation"
+    },
+    {
+      "file": "src/runs/background/subagent-runner.ts",
+      "signal": "process execution"
+    },
+    {
+      "file": "src/runs/foreground/execution.ts",
+      "signal": "process execution"
+    },
+    {
+      "file": "src/runs/shared/long-running-guard.ts",
+      "signal": "filesystem mutation"
+    },
+    {
+      "file": "src/runs/shared/pi-args.ts",
+      "signal": "filesystem mutation"
+    },
+    {
+      "file": "src/runs/shared/run-history.ts",
+      "signal": "filesystem mutation"
+    },
+    {
+      "file": "src/runs/shared/single-output.ts",
+      "signal": "filesystem mutation"
+    },
+    {
+      "file": "src/runs/shared/subagent-prompt-runtime.ts",
+      "signal": "environment access"
+    },
+    {
+      "file": "src/runs/shared/worktree.ts",
+      "signal": "process execution"
+    },
+    {
+      "file": "src/shared/artifacts.ts",
+      "signal": "filesystem mutation"
+    },
+    {
+      "file": "src/shared/atomic-json.ts",
+      "signal": "filesystem mutation"
+    },
+    {
+      "file": "src/shared/formatters.ts",
+      "signal": "environment access"
+    },
+    {
+      "file": "src/shared/post-exit-stdio-guard.ts",
+      "signal": "process execution"
+    },
+    {
+      "file": "src/shared/settings.ts",
+      "signal": "filesystem mutation"
+    },
+    {
+      "file": "src/shared/types.ts",
+      "signal": "environment access"
+    },
+    {
+      "file": "src/shared/utils.ts",
+      "signal": "filesystem mutation"
+    },
+    {
+      "file": "src/tui/render-helpers.ts",
+      "signal": "environment access"
+    }
+  ],
+  "verdict": "trial-ok-after-source-spot-check",
+  "reviewedAt": "2026-05-12T20:37:48.008Z"
+}

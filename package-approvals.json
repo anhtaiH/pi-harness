@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "trackedPackages": [
+    {
+      "spec": "npm:@earendil-works/pi-coding-agent@0.74.0",
+      "status": "approved",
+      "reason": "Human approval recorded for repo-local Pi CLI pin."
+    }
+  ],
+  "approvals": [
+    {
+      "id": "manual-earendil-works-pi-coding-agent-0-74-0-20260514215623",
+      "spec": "npm:@earendil-works/pi-coding-agent@0.74.0",
+      "status": "approved",
+      "reviewer": "taihuynh",
+      "approvedAt": "2026-05-14T21:56:29.313Z",
+      "expiresAt": "2026-08-12T21:56:29.313Z",
+      "sourceReviewVerdict": "blocked",
+      "sourceReviewDir": "package-reviews/earendil-works_pi-coding-agent_0.74.0",
+      "scope": "Repo-local Pi CLI pin for pi-harness-lab only.",
+      "rationale": "Human accepted expected powerful CLI behavior for a repo-local Pi CLI.",
+      "risksAccepted": [
+        "CLI can execute processes and mutate files as part of normal operation.",
+        "CLI can inspect local process state and project files when invoked by the operator."
+      ],
+      "mitigations": [
+        "Use bin/pi-harness for project-local Pi state.",
+        "Keep runtime tool policy, provenance, evals, and finish gates enabled.",
+        "Install from reviewed vendored tarball with npm lifecycle scripts disabled."
+      ],
+      "verification": [
+        "node scripts/package-approval.mjs doctor --json",
+        "node scripts/package-provenance.mjs write --json",
+        "node scripts/eval-pi-wrapper-local-preference.mjs",
+        "node scripts/harnessctl.mjs ready --run-gates --json"
+      ],
+      "rollback": "Remove the dev dependency, remove this approval and vendor tarball, then rerun package provenance."
+    }
+  ]
+}

@@ -1,0 +1,52 @@
+{
+  "name": "pi-harness",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "pi-harness-adopt": "bin/pi-harness-adopt.mjs"
+  },
+  "scripts": {
+    "doctor": "node scripts/doctor.mjs",
+    "eval": "node scripts/eval-runner.mjs",
+    "evidence:doctor": "node scripts/evidence-doctor.mjs",
+    "external-write": "node scripts/external-write.mjs",
+    "finish": "node scripts/finish-task.mjs",
+    "gemini": "./bin/gemini-lab",
+    "gemini:smoke": "./bin/gemini-lab --prompt \"Respond with exactly: gemini-auth-ok\" --output-format text --approval-mode plan --sandbox=false",
+    "harness": "node scripts/harnessctl.mjs",
+    "harness:bootstrap": "node scripts/bootstrap.mjs",
+    "harness:check": "node scripts/harnessctl.mjs check",
+    "harness:learn": "node scripts/harnessctl.mjs learn",
+    "harness:next": "node scripts/harnessctl.mjs next",
+    "harness:ready": "node scripts/harnessctl.mjs ready",
+    "harness:setup": "node scripts/setup-wizard.mjs",
+    "memory": "node scripts/memory.mjs",
+    "mcp:sandbox": "node scripts/mcp-sandbox.mjs",
+    "policy:profile": "node scripts/policy-profile.mjs",
+    "package:approval": "node scripts/package-approval.mjs",
+    "package:harness": "node scripts/package-harness.mjs",
+    "smoke:live": "node scripts/smoke-live.mjs",
+    "gates": "npm run secret:scan && npm run typecheck && npm run doctor && npm run package:provenance && npm run eval",
+    "package:install-reviewed": "node scripts/install-reviewed-package.mjs",
+    "package:provenance": "node scripts/package-provenance.mjs check",
+    "package:review": "node scripts/source-review.mjs",
+    "pi": "./bin/pi-harness",
+    "pi:print": "./bin/pi-harness -p",
+    "review:lane": "node scripts/review-lane.mjs",
+    "secret:scan": "node scripts/secret-scan.mjs",
+    "status": "node scripts/status.mjs",
+    "task:doctor": "node scripts/task-doctor.mjs",
+    "tool:policy": "node scripts/tool-policy.mjs",
+    "tool:proposal": "node scripts/tool-proposal.mjs",
+    "trace": "node scripts/trace-event.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "typebox": "^1.1.38"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-coding-agent": "file:vendor/npm/earendil-works-pi-coding-agent-0.74.0.tgz",
+    "@types/node": "^22.15.3",
+    "typescript": "^5.9.3"
+  }
+}

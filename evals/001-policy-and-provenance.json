@@ -1,0 +1,679 @@
+[
+  {
+    "id": "secret-scan-passes",
+    "command": [
+      "node",
+      "scripts/secret-scan.mjs",
+      "--json"
+    ],
+    "expectExit": 0,
+    "stdoutIncludes": [
+      "\"ok\": true"
+    ]
+  },
+  {
+    "id": "secret-scan-detects-finding",
+    "command": [
+      "node",
+      "scripts/eval-secret-scan-finding.mjs"
+    ],
+    "expectExit": 0,
+    "stdoutIncludes": [
+      "\"ok\": true",
+      "secret-scan-canary.txt"
+    ]
+  },
+  {
+    "id": "tool-policy-blocks-env-file-read",
+    "command": [
+      "node",
+      "scripts/tool-policy.mjs",
+      "check",
+      "--tool",
+      "read",
+      "--input-json",
+      "{\"path\":\".env\"}",
+      "--json"
+    ],
+    "expectExit": 1,
+    "stdoutIncludes": [
+      "secret-bearing path"
+    ]
+  },
+  {
+    "id": "tool-policy-blocks-envrc-read",
+    "command": [
+      "node",
+      "scripts/tool-policy.mjs",
+      "check",
+      "--tool",
+      "read",
+      "--input-json",
+      "{\"path\":\".envrc\"}",
+      "--json"
+    ],
+    "expectExit": 1,
+    "stdoutIncludes": [
+      "secret-bearing path"
+    ]
+  },
+  {
+    "id": "tool-policy-blocks-auth-file-read",
+    "command": [
+      "node",
+      "scripts/tool-policy.mjs",
+      "check",
+      "--tool",
+      "read",
+      "--input-json",
+      "{\"path\": \"auth.json\"}",
+      "--json"
+    ],
+    "expectExit": 1,
+    "stdoutIncludes": [
+      "secret-bearing path"
+    ]
+  },
+  {
+    "id": "tool-policy-allows-read-with-safe-path",
+    "command": [
+      "node",
+      "scripts/tool-policy.mjs",
+      "check",
+      "--tool",
+      "read",
+      "--input-json",
+      "{\"path\":\"src/config.ts\",\"description\":\"parses .env variable names\"}",
+      "--json"
+    ],
+    "expectExit": 0,
+    "stdoutIncludes": [
+      "\"decision\": \"allow\""
+    ]
+  },
+  {
+    "id": "tool-policy-allows-docs-mentioning-credentials",
+    "command": [
+      "node",
+      "scripts/tool-policy.mjs",
+      "check",
+      "--tool",
+      "write",
+      "--input-json",
+      "{\"path\": \"docs/example.md\", \"content\": \"Do not store credentials in docs.\"}",
+      "--json"
+    ],
+    "expectExit": 0,
+    "stdoutIncludes": [
+      "\"decision\": \"allow\""
+    ]
+  },
+  {
+    "id": "tool-policy-blocks-env-output",
+    "command": [
+      "node",
+      "scripts/tool-policy.mjs",
+      "check",
+      "--tool",
+      "bash",
+      "--input-json",
+      "{\"command\":\"env | rg API_KEY\"}",
+      "--json"
+    ],
+    "expectExit": 1,
+    "stdoutIncludes": [
+      "credential command"
+    ]
+  },
+  {
+    "id": "tool-policy-blocks-pat-expansion",
+    "command": [
+      "node",
+      "scripts/tool-policy.mjs",
+      "check",
+      "--tool",
+      "bash",
+      "--input-json",
+      "{\"command\":\"printf %s $GH_PAT\"}",
+      "--json"
+    ],
+    "expectExit": 1,
+    "stdoutIncludes": [
+      "credential command"
+    ]
+  },
+  {
+    "id": "tool-policy-allows-harness-status",
+    "command": [
+      "node",
+      "scripts/tool-policy.mjs",
+      "check",
+      "--tool",
+      "harness_status",
+      "--input-json",
+      "{}",
+      "--json"
+    ],
+    "expectExit": 0,
+    "stdoutIncludes": [
+      "\"decision\": \"allow\""
+    ]
+  },
+  {
+    "id": "tool-policy-allows-core-harness-create-task",
+    "command": [
+      "node",
+      "scripts/tool-policy.mjs",
+      "check",
+      "--tool",
+      "harness_create_task",
+      "--input-json",
+      "{\"title\":\"local-task\",\"risk\":\"yellow\"}",
+      "--json"
+    ],
+    "expectExit": 0,
+    "stdoutIncludes": [
+      "\"decision\": \"allow\""
+    ]
+  },
+  {
+    "id": "tool-policy-blocks-unlisted-tool",
+    "command": [
+      "node",
+      "scripts/tool-policy.mjs",
+      "check",
+      "--tool",
+      "web_search",
+      "--input-json",
+      "{}",
+      "--json"
+    ],
+    "expectExit": 1,
+    "stdoutIncludes": [
+      "allowlist"
+    ]
+  },
+  {
+    "id": "tool-policy-blocks-destructive-without-yolo",
+    "command": [
+      "node",
+      "scripts/tool-policy.mjs",
+      "check",
+      "--tool",
+      "bash",
+      "--input-json",
+      "{\"command\":\"rm -rf state/tmp-yolo-eval\"}",
+      "--json"
+    ],
+    "expectExit": 1,
+    "stdoutIncludes": [
+      "destructive shell command requires yolo policy"
+    ]
+  },
+  {
+    "id": "tool-policy-audits-destructive-with-yolo",
+    "command": [
+      "node",
+      "scripts/tool-policy.mjs",
+      "check",
+      "--tool",
+      "bash",
+      "--input-json",
+      "{\"command\":\"rm -rf state/tmp-yolo-eval\"}",
+      "--yolo",
+      "--json"
+    ],
+    "expectExit": 0,
+    "stdoutIncludes": [
+      "\"decision\": \"audit\""
+    ]
+  },
+  {
+    "id": "tool-policy-blocks-external-write-without-intent",
+    "command": [
+      "node",
+      "scripts/tool-policy.mjs",
+      "check",
+      "--tool",
+      "bash",
+      "--input-json",
+      "{\"command\":\"gh pr merge 123 --delete-branch\"}",
+      "--json"
+    ],
+    "expectExit": 1,
+    "stdoutIncludes": [
+      "external write-like command requires a valid task-scoped intent"
+    ]
+  },
+  {
+    "id": "tool-policy-audits-external-write-with-intent",
+    "command": [
+      "node",
+      "scripts/eval-external-write-intent.mjs"
+    ],
+    "expectExit": 0,
+    "stdoutIncludes": [
+      "\"ok\": true",
+      "\"decision\": \"audit\""
+    ]
+  },
+  {
+    "id": "runtime-policy-gate-source-present",
+    "command": [
+      "node",
+      "scripts/eval-runtime-policy-gate-source.mjs"
+    ],
+    "expectExit": 0,
+    "stdoutIncludes": [
+      "\"ok\": true"
+    ]
+  },
+  {
+    "id": "external-write-doctor-requires-proof",
+    "command": [
+      "node",
+      "scripts/eval-external-write-doctor.mjs"
+    ],
+    "expectExit": 0,
+    "stdoutIncludes": [
+      "\"ok\": true",
+      "closedOk"
+    ]
+  },
+  {
+    "id": "evidence-doctor-allows-final-memory-section",
+    "command": [
+      "node",
+      "scripts/eval-evidence-last-section.mjs"
+    ],
+    "expectExit": 0,
+    "stdoutIncludes": [
+      "\"ok\": true"
+    ]
+  },
+  {
+    "id": "task-doctor-validates-filled-packet",
+    "command": [
+      "node",
+      "scripts/eval-task-doctor.mjs"
+    ],
+    "expectExit": 0,
+    "stdoutIncludes": [
+      "\"ok\": true",
+      "failFindings"
+    ]
+  },
+  {
+    "id": "memory-flow-add-search-doctor",
+    "command": [
+      "node",
+      "scripts/eval-memory-flow.mjs"
+    ],
+    "expectExit": 0,
+    "stdoutIncludes": [
+      "\"ok\": true",
+      "blockedFindings"
+    ]
+  },
+  {
+    "id": "review-lane-flow-plan-finding-synthesize",
+    "command": [
+      "node",
+      "scripts/eval-review-lane-flow.mjs"
+    ],
+    "expectExit": 0,
+    "stdoutIncludes": [
+      "\"ok\": true",
+      "unknownFindings"
+    ]
+  },
+  {
+    "id": "tool-policy-recommends-package-allowlist-tuning",
+    "command": [
+      "node",
+      "scripts/eval-tool-policy-recommendations.mjs"
+    ],
+    "expectExit": 0,
+    "stdoutIncludes": [
+      "\"ok\": true",
+      "pi-mcp-adapter",
+      "pi-subagents"
+    ]
+  },
+  {
+    "id": "policy-profile-flow-applies-task-scoped-allowlists",
+    "command": [
+      "node",
+      "scripts/eval-policy-profile-flow.mjs"
+    ],
+    "expectExit": 0,
+    "stdoutIncludes": [
+      "\"ok\": true",
+      "server_docs_search"
+    ]
+  },
+  {
+    "id": "policy-profile-expiry-and-clear-on-finish",
+    "command": [
+      "node",
+      "scripts/eval-policy-profile-expiry.mjs"
+    ],
+    "expectExit": 0,
+    "stdoutIncludes": [
+      "\"ok\": true",
+      "donePolicyRemoved"
+    ]
+  },
+  {
+    "id": "tool-policy-metadata-gates-write-like-direct-tools",
+    "command": [
+      "node",
+      "scripts/eval-tool-policy-metadata.mjs"
+    ],
+    "expectExit": 0,
+    "stdoutIncludes": [
+      "\"ok\": true",
+      "sandbox_issue_comment",
+      "external write-like tool has task intent"
+    ]
+  },
+  {
+    "id": "tool-policy-metadata-catalog-classifies-connectors",
+    "command": [
+      "node",
+      "scripts/eval-tool-policy-metadata-catalog.mjs"
+    ],
+    "expectExit": 0,
+    "stdoutIncludes": [
+      "\"ok\": true",
+      "slack_post_message",
+      "github_issues_list"
+    ]
+  },
+  {
+    "id": "mcp-sandbox-provides-local-read-and-write-fixtures",
+    "command": [
+      "node",
+      "scripts/eval-mcp-sandbox.mjs"
+    ],
+    "expectExit": 0,
+    "stdoutIncludes": [
+      "\"ok\": true",
+      "sandbox write-like tools"
+    ]
+  },
+  {
+    "id": "memory-import-ranking-prefers-sourced-high-confidence",
+    "command": [
+      "node",
+      "scripts/eval-memory-import-ranking.mjs"
+    ],
+    "expectExit": 0,
+    "stdoutIncludes": [
+      "\"ok\": true",
+      "duplicateSkipped",
+      "sourced high confidence"
+    ]
+  },
+  {
+    "id": "memory-prune-removes-stale-and-duplicate-entries",
+    "command": [
+      "node",
+      "scripts/eval-memory-prune.mjs"
+    ],
+    "expectExit": 0,
+    "stdoutIncludes": [
+      "\"ok\": true",
+      "dryRemoved"
+    ]
+  },
+  {
+    "id": "safe-subagent-definitions-are-read-only",
+    "command": [
+      "node",
+      "scripts/eval-safe-subagents.mjs"
+    ],
+    "expectExit": 0,
+    "stdoutIncludes": [
+      "\"ok\": true",
+      "harness-reviewer",
+      "harness-scout"
+    ]
+  },
+  {
+    "id": "review-lane-run-dry-records-bounded-run",
+    "command": [
+      "node",
+      "scripts/eval-review-lane-run-dry.mjs"
+    ],
+    "expectExit": 0,
+    "stdoutIncludes": [
+      "\"ok\": true",
+      "runCount"
+    ]
+  },
+  {
+    "id": "live-smoke-dry-run-covers-policy-surfaces",
+    "command": [
+      "node",
+      "scripts/eval-live-smoke-dry-run.mjs"
+    ],
+    "expectExit": 0,
+    "stdoutIncludes": [
+      "\"ok\": true",
+      "subagent-review-scoped-policy"
+    ]
+  },
+  {
+    "id": "status-dashboard-includes-control-plane-summaries",
+    "command": [
+      "node",
+      "scripts/eval-status-dashboard.mjs"
+    ],
+    "expectExit": 0,
+    "stdoutIncludes": [
+      "\"ok\": true",
+      "External writes"
+    ]
+  },
+  {
+    "id": "harnessctl-provides-next-and-check-summaries",
+    "command": [
+      "node",
+      "scripts/eval-harnessctl.mjs"
+    ],
+    "expectExit": 0,
+    "stdoutIncludes": [
+      "\"ok\": true",
+      "tool-policy",
+      "nextActions"
+    ]
+  },
+  {
+    "id": "harnessctl-teaches-just-in-time-guidance",
+    "command": [
+      "node",
+      "scripts/eval-harnessctl-guidance.mjs"
+    ],
+    "expectExit": 0,
+    "stdoutIncludes": [
+      "\"ok\": true",
+      "brief -> work -> proof -> gate",
+      "checkAdviceIds"
+    ]
+  },
+  {
+    "id": "bootstrap-initializes-local-harness-state",
+    "command": [
+      "node",
+      "scripts/eval-bootstrap.mjs"
+    ],
+    "expectExit": 0,
+    "stdoutIncludes": [
+      "\"ok\": true",
+      "state-dirs",
+      "npm run pi"
+    ]
+  },
+  {
+    "id": "setup-wizard-plans-and-applies-agent-driven-setup",
+    "command": [
+      "node",
+      "scripts/eval-setup-wizard.mjs"
+    ],
+    "expectExit": 0,
+    "stdoutIncludes": [
+      "\"ok\": true",
+      "agent-continuation-prompt",
+      "promptExists"
+    ]
+  },
+  {
+    "id": "capability-wizard-covers-models-team-and-research",
+    "command": [
+      "node",
+      "scripts/eval-capability-wizard.mjs"
+    ],
+    "expectExit": 0,
+    "stdoutIncludes": [
+      "\"ok\": true",
+      "teamStatus",
+      "researchStatus"
+    ]
+  },
+  {
+    "id": "adopt-project-adds-sidecar-golden-path",
+    "command": [
+      "node",
+      "scripts/eval-adopt-project.mjs"
+    ],
+    "expectExit": 0,
+    "stdoutIncludes": [
+      "\"ok\": true",
+      "harness:setup",
+      "setupPlanHasCapabilities"
+    ]
+  },
+  {
+    "id": "pi-wrappers-prefer-repo-local-binary",
+    "command": [
+      "node",
+      "scripts/eval-pi-wrapper-local-preference.mjs"
+    ],
+    "expectExit": 0,
+    "stdoutIncludes": [
+      "\"ok\": true",
+      "pi-harness-local",
+      "pi-harness-sidecar"
+    ]
+  },
+  {
+    "id": "writer-lock-lifecycle",
+    "command": [
+      "node",
+      "scripts/eval-writer-lock-lifecycle.mjs"
+    ],
+    "expectExit": 0,
+    "stdoutIncludes": [
+      "\"ok\": true",
+      "\"activeObserved\": true"
+    ]
+  },
+  {
+    "id": "writer-lock-doctor-fails-expired-lock",
+    "command": [
+      "node",
+      "scripts/eval-writer-lock-expired.mjs"
+    ],
+    "expectExit": 0,
+    "stdoutIncludes": [
+      "\"ok\": true",
+      "expired lock remains"
+    ]
+  },
+  {
+    "id": "trace-event-writes-entry",
+    "command": [
+      "node",
+      "scripts/trace-event.mjs",
+      "checkpoint",
+      "--run",
+      "eval-trace-case",
+      "--label",
+      "eval",
+      "--data-json",
+      "{\"ok\":true}",
+      "--json"
+    ],
+    "expectExit": 0,
+    "stdoutIncludes": [
+      "\"type\": \"checkpoint\""
+    ]
+  },
+  {
+    "id": "package-settings-declares-reviewed-packages",
+    "command": [
+      "node",
+      "scripts/eval-package-settings.mjs"
+    ],
+    "expectExit": 0,
+    "stdoutIncludes": [
+      "\"ok\": true"
+    ]
+  },
+  {
+    "id": "package-harness-manifest-excludes-secret-state",
+    "command": [
+      "node",
+      "scripts/eval-package-harness-manifest.mjs"
+    ],
+    "expectExit": 0,
+    "stdoutIncludes": [
+      "\"ok\": true",
+      ".pi-agent",
+      ".env*"
+    ]
+  },
+  {
+    "id": "manual-package-approval-gates-blocked-reviews",
+    "command": [
+      "node",
+      "scripts/eval-package-approval-flow.mjs"
+    ],
+    "expectExit": 0,
+    "stdoutIncludes": [
+      "\"ok\": true",
+      "manual-eval-pi-cli",
+      "no valid manual approval"
+    ]
+  },
+  {
+    "id": "portable-package-artifacts-support-clean-clone",
+    "command": [
+      "node",
+      "scripts/eval-portable-package-artifacts.mjs"
+    ],
+    "expectExit": 0,
+    "stdoutIncludes": [
+      "\"ok\": true",
+      "\"vendorCount\": 7",
+      "\"availability\": \"vendored\""
+    ]
+  },
+  {
+    "id": "package-provenance-checks-installed-packages",
+    "command": [
+      "node",
+      "scripts/package-provenance.mjs",
+      "check",
+      "--json"
+    ],
+    "expectExit": 0,
+    "stdoutIncludes": [
+      "\"ok\": true",
+      "pi-mcp-adapter",
+      "pi-subagents",
+      "typebox"
+    ]
+  }
+]

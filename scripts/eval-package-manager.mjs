@@ -28,8 +28,9 @@ const ok = packageJson.packageManager?.startsWith("pnpm@")
   && bootstrap.status === 0
   && packageManagerStep?.ok === true
   && String(packageManagerStep.detail || "").includes("pnpm")
-  && workflow.includes("cache: pnpm")
-  && workflow.includes("corepack pnpm install --frozen-lockfile");
+  && workflow.includes("corepack enable")
+  && workflow.includes("corepack pnpm install --frozen-lockfile")
+  && !workflow.includes("cache: pnpm");
 
 console.log(JSON.stringify({
   ok,
@@ -40,6 +41,6 @@ console.log(JSON.stringify({
   installAction: installAction ? { command: installAction.command, packageManager: installAction.packageManager } : null,
   bootstrapStatus: bootstrap.status,
   packageManagerStep,
-  workflowUsesPnpm: workflow.includes("cache: pnpm") && workflow.includes("corepack pnpm install --frozen-lockfile"),
+  workflowUsesPnpm: workflow.includes("corepack enable") && workflow.includes("corepack pnpm install --frozen-lockfile") && !workflow.includes("cache: pnpm"),
 }, null, 2));
 process.exit(ok ? 0 : 1);

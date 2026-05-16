@@ -250,16 +250,55 @@ function nextSteps({ findings, taskId, skipFinish }) {
 
 function output(result, label, code = undefined) {
   if (json) printResult(result, true, label);
-  if (result.ok) console.log(`ok   ${label}: ${result.taskId}`);
-  else console.log(`fail ${label}: ${(result.findings || []).join("; ")}`);
-  for (const item of result.steps || []) console.log(`- ${item.ok ? "ok" : "fail"} ${item.id}`);
+  console.log("Pi Harness Done");
+  console.log("===============");
+  console.log(`Task: ${result.taskId}`);
+  console.log("");
+  for (const item of result.steps || []) {
+    const icon = item.ok ? "✓" : "✗";
+    const detail = item.findingCount ? ` (${item.findingCount} finding${item.findingCount === 1 ? "" : "s"})` : item.warningCount ? ` (${item.warningCount} warning${item.warningCount === 1 ? "" : "s"})` : "";
+    console.log(`${icon} ${stepLabel(item.id)}${detail}`);
+  }
   if (result.warnings?.length) {
-    console.log("Warnings:");
+    console.log("\nWarnings (non-blocking):");
     for (const warning of result.warnings) console.log(`- ${warning}`);
   }
+  if (!result.ok && result.findings?.length) {
+    console.log("\nWhat is blocking done:");
+    for (const finding of friendlyBlockers(result.findings)) console.log(`- ${finding}`);
+    console.log("\nFor a detailed blocker list per gate, run: ph blockers --task " + (result.taskId || ""));
+  }
   if (result.next?.length) {
-    console.log("Next:");
+    console.log("\nNext:");
     for (const step of result.next) console.log(`- ${step}`);
   }
+  console.log("");
+  console.log(result.ok ? "Done." : "Blocked.");
   process.exit(code ?? (result.ok ? 0 : 1));
+}
+
+function stepLabel(id) {
+  const labels = {
+    "task-doctor": "Task packet check",
+    "project-checks": "Project checks",
+    "review-policy-plan": "Plan review lane (auto)",
+    "review-policy": "Review policy gate",
+    "evidence-doctor-before": "Evidence check (before draft)",
+    "evidence-drafted": "Evidence drafted",
+    "evidence-doctor": "Evidence check",
+    "proof-ledger": "Proof ledger check",
+    "finish-task": "Finish gates",
+  };
+  return labels[id] || id;
+}
+
+function friendlyBlockers(findings) {
+  return findings.map((finding) => {
+    if (finding.startsWith("evidence-doctor")) return finding.replace(/^evidence-doctor: /, "Evidence file is incomplete — ");
+    if (finding.startsWith("task-doctor")) return finding.replace(/^task-doctor: /, "Task packet incomplete — ");
+    if (finding.startsWith("project-checks")) return finding.replace(/^project-checks: /, "A project check failed — ");
+    if (finding.startsWith("review-policy")) return finding.replace(/^review-policy: /, "Review policy not satisfied — ");
+    if (finding.startsWith("finish-task")) return finding.replace(/^finish-task: /, "Finish gate failed — ");
+    return finding;
+  });
 }

@@ -169,12 +169,22 @@ case "${1:-}" in
   memory)
     shift
     case "${1:-}" in
-      add|import|search|list|review|forget|prune|doctor)
+      add|import|search|list|review|why|forget|prune|doctor)
         cd "$HARNESS_ROOT"
         exec node scripts/memory.mjs "$@"
         ;;
     esac
     export PI_HARNESS_ASSIST=memory
+    ;;
+  blockers)
+    shift
+    cd "$HARNESS_ROOT"
+    exec node scripts/done-blockers.mjs "$@"
+    ;;
+  why-blocked|blocked)
+    shift
+    cd "$HARNESS_ROOT"
+    exec node scripts/done-blockers.mjs "$@"
     ;;
   brief|task)
     shift

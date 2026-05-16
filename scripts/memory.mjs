@@ -125,6 +125,34 @@ if (command === "review") {
   output({ ok: state.parseFindings.length === 0, count: entries.length, stale, duplicates, recent, recommendations, findings: state.parseFindings }, "memory review");
 }
 
+if (command === "why") {
+  const id = parseFlag(args, "--id", args[1] || "");
+  if (!id) printResult({ ok: false, findings: ["missing memory id; use memory why <id> or --id <id>"] }, json, "memory why");
+  const state = readEntries();
+  const target = state.entries.find((entry) => entry.id === id);
+  if (!target) printResult({ ok: false, id, findings: ["memory id not found: " + id] }, json, "memory why");
+  const ageDays = Math.max(0, Math.round((Date.now() - Date.parse(target.createdAt || "")) / 86_400_000));
+  const expired = isExpired(target);
+  const expiresInDays = target.expiresAt ? Math.round((Date.parse(target.expiresAt) - Date.now()) / 86_400_000) : null;
+  const dupCount = state.entries.filter((entry) => normalizeText(entry.text) === normalizeText(target.text)).length - 1;
+  const lines = [
+    `Memory ${target.id}`,
+    `  text:       ${target.text}`,
+    `  kind:       ${target.kind} (confidence ${target.confidence})`,
+    `  scope:      ${target.scope}`,
+    `  source:     ${target.source}`,
+    `  task:       ${target.taskId || "(none)"}`,
+    `  tags:       ${(target.tags || []).join(", ") || "(none)"}`,
+    `  created:    ${target.createdAt} (${ageDays} day${ageDays === 1 ? "" : "s"} ago)`,
+    `  expires:    ${target.expiresAt ? `${target.expiresAt} (${expired ? "expired" : `${expiresInDays} day${expiresInDays === 1 ? "" : "s"} left`})` : "(never)"}`,
+    `  duplicates: ${dupCount}`,
+  ];
+  if (expired) lines.push("  status:     stale (expired). Consider `ph memory forget " + target.id + " --reason 'expired'`.");
+  else if (dupCount > 0) lines.push("  status:     duplicate. Consider `ph memory prune --duplicates --dry-run`.");
+  else lines.push("  status:     active and unique.");
+  output({ ok: true, entry: target, ageDays, expired, expiresInDays, duplicateCount: dupCount, lines, findings: [] }, "memory why");
+}
+
 if (command === "forget") {
   const id = parseFlag(args, "--id", args[1] || "");
   const reason = parseFlag(args, "--reason", "manual memory review");
@@ -165,7 +193,7 @@ if (command === "doctor") {
   output({ ok: findings.length === 0, count: entries.length, stale, duplicates, findings }, "memory doctor");
 }
 
-console.error("usage: node scripts/memory.mjs add|import|search|list|review|forget|prune|doctor [--json] [...]");
+console.error("usage: node scripts/memory.mjs add|import|search|list|review|why|forget|prune|doctor [--json] [...]");
 process.exit(2);
 
 function buildEntry({ kind, text, source, scope, confidence, tags, taskId, expiresAt }) {
@@ -379,10 +407,17 @@ function output(result, label) {
   else if (result.removed) console.log(`${label}: ${result.removed.id} removed${result.dryRun ? " (dry-run)" : ""}`);
   else if (result.recent) {
     console.log(`ok   ${label}: ${result.count} entries`);
-    for (const item of result.recent) console.log(`${item.id} [${item.kind}/${item.confidence}] ${item.text}`);
+    for (const item of result.recent) {
+      const age = Math.max(0, Math.round((Date.now() - Date.parse(item.createdAt || "")) / 86_400_000));
+      console.log(`  ${item.id} [${item.kind}/${item.confidence}] (${age}d) ${item.text}`);
+      console.log(`    source: ${item.source}`);
+    }
+    if (result.stale?.length) console.log(`Stale: ${result.stale.length}. Use \`ph memory why <id>\` for details.`);
+    if (result.duplicates?.length) console.log(`Duplicates: ${result.duplicates.length}.`);
     if (result.recommendations?.length) console.log("Next: " + result.recommendations.join(" "));
   }
   else if (result.entries) console.log(result.entries.map((entry) => `${entry.id} [${entry.kind}] ${entry.text}`).join("\n") || "No memory entries.");
+  else if (Array.isArray(result.lines)) console.log(result.lines.join("\n"));
   else console.log(`ok   ${label}: ${result.count ?? ""}`.trim());
   process.exit(0);
 }

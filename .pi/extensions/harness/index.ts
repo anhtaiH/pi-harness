@@ -1,7 +1,7 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { join, relative, resolve } from "node:path";
-import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
+import { Key, matchesKey, truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
 
 type Risk = "green" | "yellow" | "red";
@@ -112,6 +112,41 @@ export default function harnessExtension(pi: any) {
     description: "Map a plain-language request to the right harness capability",
     handler: async (args: string, ctx: any) => {
       showIntentRouting(args, ctx);
+    },
+  });
+
+  pi.registerCommand("harness-blockers", {
+    description: "Show what is blocking `done` for the active or named task",
+    handler: async (_args: string, ctx: any) => {
+      showDoneBlockers(ctx);
+    },
+  });
+
+  pi.registerCommand("harness-review", {
+    description: "Plan or run fresh-context review for risky work",
+    handler: async (_args: string, ctx: any) => {
+      showReviewSuggestion(ctx);
+    },
+  });
+
+  pi.registerCommand("harness-long-run", {
+    description: "Long-running work dashboard",
+    handler: async (_args: string, ctx: any) => {
+      showLongRunDashboard(ctx);
+    },
+  });
+
+  pi.registerCommand("harness-reset", {
+    description: "Show safe reset/repair/retry options for this project",
+    handler: async (_args: string, ctx: any) => {
+      showResetHelp(ctx);
+    },
+  });
+
+  pi.registerCommand("harness-memory-why", {
+    description: "Explain why the harness remembers a given memory id",
+    handler: async (_args: string, ctx: any) => {
+      showMemoryWhyPrompt(ctx);
     },
   });
 
@@ -1318,33 +1353,104 @@ function harnessFooter(ctx: any, theme: any, footerData: any) {
     dispose: typeof unsub === "function" ? unsub : undefined,
     invalidate() {},
     render(width: number): string[] {
-      const status = readStatusSnapshot();
-      const activeTask = status?.activeTask?.taskId || "none";
-      const openTask = (status?.tasks || []).find((task: any) => !["done", "blocked"].includes(task.status));
-      const task = activeTask !== "none" ? activeTask : openTask?.id || "none";
-      const taskRisk = openTask?.risk ? `/${openTask.risk}` : "";
-      const lock = status?.writerLock?.active ? "lock:active" : "lock:free";
-      const evalText = status?.latestEval ? (status.latestEval.ok ? `eval:${status.latestEval.caseCount || 0}✓` : "eval:fail") : "eval:—";
-      const memory = status?.memory?.stale || status?.memory?.duplicates?.length ? "mem:review" : `mem:${status?.memory?.count ?? 0}`;
-      const caps = capabilityModeLabel();
-      const branch = footerData?.getGitBranch?.() || "";
-      const model = ctx?.model?.id || "no-model";
-      const left = ["π", shortProjectName(), `task:${shortId(task)}${taskRisk}`, lock, evalText, memory, `caps:${caps}`].join(" ");
-      const right = [model, branch ? `git:${branch}` : "", "try:/harness"].filter(Boolean).join(" ");
-      const styledLeft = theme.fg(status?.health?.ok ? "success" : "warning", left);
-      const styledRight = theme.fg("dim", right);
-      const gap = " ".repeat(Math.max(1, width - visibleWidth(styledLeft) - visibleWidth(styledRight)));
-      return [truncateToWidth(styledLeft + gap + styledRight, width)];
+      return renderStatusline(ctx, theme, footerData, width);
     },
   };
 }
 
-function compactHarnessStatus(status: any, ctx: any): string {
-  const open = status?.health?.openTasks ?? 0;
-  const lock = status?.writerLock?.active ? "lock active" : "lock free";
-  const model = ctx?.model?.id || "no model";
+function renderStatusline(ctx: any, theme: any, footerData: any, width: number): string[] {
+  const status = readStatusSnapshot();
+  const activeTask = status?.activeTask?.taskId || "";
+  const openTask = (status?.tasks || []).find((task: any) => !["done", "blocked"].includes(task.status));
+  const task = activeTask || openTask?.id || "";
+  const taskRisk = openTask?.risk || "";
+  const lockActive = Boolean(status?.writerLock?.active);
+  const evalSnap = status?.latestEval || null;
+  const memoryNeedsReview = Boolean(status?.memory?.stale || status?.memory?.duplicates?.length);
+  const memoryCount = status?.memory?.count ?? 0;
   const caps = capabilityModeLabel();
-  return `π ${open} open · ${lock} · ${caps} · ${model} · /harness`;
+  const branch = footerData?.getGitBranch?.() || "";
+  const model = ctx?.model?.id || "";
+  const recommendation = recommendedHarnessAction();
+
+  // Segments are objects so we can drop low-priority ones when the terminal is narrow.
+  type Segment = { text: string; priority: number };
+  const left: Segment[] = [];
+  left.push({ text: theme.fg("accent", "π"), priority: 0 });
+  left.push({ text: theme.fg("text", shortProjectName()), priority: 1 });
+  if (task) {
+    const riskColor = taskRisk === "red" ? "error" : taskRisk === "yellow" ? "warning" : taskRisk === "green" ? "success" : "text";
+    const taskLabel = theme.fg("muted", "task ") + theme.fg(riskColor, shortId(task));
+    left.push({ text: taskLabel, priority: 2 });
+  } else {
+    left.push({ text: theme.fg("muted", "task -"), priority: 6 });
+  }
+  if (lockActive) left.push({ text: theme.fg("warning", "● lock"), priority: 2 });
+  if (evalSnap) {
+    const icon = evalSnap.ok ? theme.fg("success", "✓") : theme.fg("error", "✗");
+    const count = evalSnap.ok ? String(evalSnap.caseCount || 0) : "fail";
+    left.push({ text: `${icon}${theme.fg("muted", " ")}${theme.fg("text", count)}`, priority: 3 });
+  } else {
+    left.push({ text: theme.fg("muted", "– evals"), priority: 5 });
+  }
+  if (memoryNeedsReview) left.push({ text: theme.fg("warning", "mem review"), priority: 3 });
+  else if (memoryCount > 0) left.push({ text: theme.fg("muted", `mem ${memoryCount}`), priority: 6 });
+  if (caps !== "base") left.push({ text: theme.fg("accent", caps), priority: 4 });
+
+  const right: Segment[] = [];
+  if (model) right.push({ text: theme.fg("text", model), priority: 1 });
+  else right.push({ text: theme.fg("warning", "no model"), priority: 1 });
+  if (branch) right.push({ text: theme.fg("muted", `⎇ ${branch}`), priority: 4 });
+  if (recommendation?.label) right.push({ text: theme.fg("accent", `→ ${recommendation.label}`), priority: 2 });
+
+  return composeStatusline(theme, left, right, width);
+}
+
+function composeStatusline(theme: any, left: any[], right: any[], width: number): string[] {
+  const sep = theme.fg("borderMuted", " │ ");
+  // Drop low-priority segments until everything fits, biggest priority number first.
+  const sortedLeft = [...left].map((s, i) => ({ ...s, i })).sort((a, b) => b.priority - a.priority);
+  const sortedRight = [...right].map((s, i) => ({ ...s, i })).sort((a, b) => b.priority - a.priority);
+  const keep = (segments: any[]) => segments.sort((a, b) => a.i - b.i).map((s) => s.text);
+  const renderSide = (segments: any[]) => keep(segments).join(sep);
+  let leftKept = [...left].map((s, i) => ({ ...s, i }));
+  let rightKept = [...right].map((s, i) => ({ ...s, i }));
+  const dropped = new Set<string>();
+  while (true) {
+    const leftText = renderSide(leftKept);
+    const rightText = renderSide(rightKept);
+    const gap = Math.max(2, 1);
+    const total = visibleWidth(leftText) + visibleWidth(rightText) + gap;
+    if (total <= width) {
+      const fillerSize = Math.max(1, width - visibleWidth(leftText) - visibleWidth(rightText));
+      return [truncateToWidth(leftText + " ".repeat(fillerSize) + rightText, width)];
+    }
+    const candidate = [...sortedLeft.filter((s) => !dropped.has(`L${s.i}`)), ...sortedRight.filter((s) => !dropped.has(`R${s.i}`))].sort((a, b) => b.priority - a.priority)[0];
+    if (!candidate || candidate.priority <= 1) {
+      return [truncateToWidth(leftText + " " + rightText, width, "…")];
+    }
+    if (sortedLeft.includes(candidate)) {
+      dropped.add(`L${candidate.i}`);
+      leftKept = leftKept.filter((s) => s.i !== candidate.i);
+    } else {
+      dropped.add(`R${candidate.i}`);
+      rightKept = rightKept.filter((s) => s.i !== candidate.i);
+    }
+  }
+}
+
+function compactHarnessStatus(status: any, ctx: any): string {
+  const theme = ctx?.ui?.theme;
+  const open = status?.health?.openTasks ?? 0;
+  const recommendation = recommendedHarnessAction();
+  const model = ctx?.model?.id || "no model";
+  const parts = [
+    `π ${open} open`,
+    `model ${model}`,
+    `→ ${recommendation.label}`,
+  ];
+  if (theme?.fg) return theme.fg("dim", parts.join("  ·  "));
+  return parts.join("  ·  ");
 }
 
 function configureStatusline(args: string, ctx: any) {
@@ -1405,39 +1511,254 @@ function capabilityModeLabel(): string {
 }
 
 async function openHarnessCommandCenter(pi: any, ctx: any) {
-  const recommendation = recommendedHarnessAction();
-  const options = [
-    { label: `Recommended: ${recommendation.label}`, value: recommendation.value },
-    { label: "Plain-language router", value: "route" },
-    { label: "Shape a vague task", value: "brief" },
-    { label: "Finish current task", value: "done" },
-    { label: "Models, login, and /model", value: "models" },
-    { label: "Local LLMs (Ollama / LM Studio)", value: "local-llm" },
-    { label: "Team / subagents", value: "team" },
-    { label: "Research / web / MCP", value: "research" },
-    { label: "Memory review / forget", value: "memory" },
-    { label: "Reset / repair / retry", value: "reset" },
-    { label: "Statusline / footer", value: "statusline" },
-    { label: "Show everything the harness can do", value: "more" },
-  ];
   if (!ctx.hasUI) {
     ctx.ui.notify(commandCenterText(), "info");
     return;
   }
-  const picked = await ctx.ui.select("Pi Harness — what do you need?", options.map((item) => item.label));
-  const choice = options.find((item) => item.label === picked)?.value;
-  if (!choice) return;
-  if (choice === "route") return showIntentRouting("", ctx);
-  if (choice === "brief") return runBriefBuilder("", ctx);
-  if (choice === "done") return runDoneFromCommand(ctx);
-  if (choice === "models") return showCapabilityHelp(ctx, "models");
-  if (choice === "local-llm") return maybeRegisterLocalLlmProviders(pi, ctx, true);
-  if (choice === "team") return showCapabilityHelp(ctx, "team");
-  if (choice === "research") return showCapabilityHelp(ctx, "research");
-  if (choice === "memory") return showMemoryReview(ctx);
-  if (choice === "reset") return showResetHelp(ctx);
-  if (choice === "statusline") return configureStatusline("", ctx);
-  return showHarnessMore("", ctx);
+  const action = await pickCommandCenterAction(ctx);
+  if (!action) return;
+  return runCommandCenterAction(action, pi, ctx);
+}
+
+interface CommandCenterAction {
+  id: string;
+  label: string;
+  description: string;
+  category: string;
+  keywords: string[];
+  command?: string;
+}
+
+function commandCenterActions(): CommandCenterAction[] {
+  return [
+    { id: "brief", label: "Shape a vague task", description: "Ask a few targeted questions, create a scoped task packet, propose verification and review.", category: "Tasks", keywords: ["task", "scope", "plan", "brief", "grill", "breakdown"], command: "/harness-brief" },
+    { id: "done", label: "Finish current task safely", description: "Run project checks, review policy, evidence, and finish gates. Shows blockers in plain English.", category: "Tasks", keywords: ["done", "finish", "ship", "close", "evidence", "gate", "proof"], command: "/harness-done" },
+    { id: "blockers", label: "What is blocking done?", description: "Inspect why finish gates would fail right now, with the exact next command per blocker.", category: "Tasks", keywords: ["blocked", "blockers", "why", "fail", "stuck", "done"], command: "/harness-blockers" },
+    { id: "status", label: "Status: tasks, locks, evals", description: "Show the current harness state.", category: "Tasks", keywords: ["status", "state", "now", "tasks"], command: "/harness-status" },
+    { id: "models", label: "Models, login, profiles", description: "Plain-language /login and /model guide; local scout / cloud implementation / fresh review profiles.", category: "Capabilities", keywords: ["model", "login", "auth", "provider", "api key", "profile"], command: "/harness-models" },
+    { id: "local-llm", label: "Local LLMs (Ollama, LM Studio)", description: "Detect local servers and register low-risk scout/docs/check-triage profiles.", category: "Capabilities", keywords: ["local", "ollama", "lm studio", "offline", "scout", "cheap"], command: "/harness-local-llm" },
+    { id: "team", label: "Team / subagents", description: "Open Pi with reviewed team packages and a scout/planner/worker/reviewer plan.", category: "Capabilities", keywords: ["team", "subagent", "reviewer", "delegation"], command: "/harness-team" },
+    { id: "research", label: "Research / web / MCP", description: "Open Pi with reviewed research/MCP packages and read-only, source-cited research first.", category: "Capabilities", keywords: ["research", "web", "mcp", "docs", "source", "cite"], command: "/harness-research" },
+    { id: "route", label: "Plain-language router", description: "Type what you want; the harness suggests the safest matching mode.", category: "Capabilities", keywords: ["route", "intent", "natural", "what should i"], command: "/harness-route" },
+    { id: "memory", label: "Memory: review, why, forget", description: "Inspect what the harness remembers, why, and forget safely.", category: "Memory", keywords: ["memory", "remember", "forget", "stale", "rules"], command: "/harness-memory" },
+    { id: "memory-why", label: "Why do you remember this?", description: "Show source, scope, confidence, age, and task for a memory id.", category: "Memory", keywords: ["why", "reason", "memory", "source"], command: "/harness-memory-why" },
+    { id: "review", label: "Fresh-context review", description: "For yellow/red tasks: plan or run a fresh-context review lane before done.", category: "Safety", keywords: ["review", "fresh", "second opinion", "safety"], command: "/harness-review" },
+    { id: "long-run", label: "Long-running work dashboard", description: "Plan, heartbeat, checkpoint, resume, and inspect what changed since last session.", category: "Safety", keywords: ["long", "long-run", "resume", "checkpoint", "heartbeat"], command: "/harness-long-run" },
+    { id: "reset", label: "Reset / repair / retry setup", description: "Preview safe sidecar reset; repair installs; rerun the public installer.", category: "Setup", keywords: ["reset", "repair", "update", "uninstall", "retry", "start over"], command: "/harness-reset" },
+    { id: "statusline", label: "Statusline / footer", description: "Show/hide the harness footer or refresh the snapshot.", category: "Setup", keywords: ["statusline", "footer", "ui"], command: "/harness-statusline" },
+    { id: "more", label: "Show every harness capability", description: "Plain-language list of capabilities and example commands.", category: "Setup", keywords: ["more", "all", "list", "help"], command: "/harness-more" },
+  ];
+}
+
+async function pickCommandCenterAction(ctx: any): Promise<CommandCenterAction | null> {
+  const actions = commandCenterActions();
+  const recommendation = recommendedHarnessAction();
+  const recommendedAction = actions.find((item) => item.id === recommendation.value) || null;
+  const ui = ctx?.ui;
+  if (ui?.custom) {
+    return new Promise((resolve) => {
+      let handle: any;
+      const component = new CommandCenterComponent(actions, recommendedAction, ui.theme, (result) => {
+        handle?.close?.();
+        resolve(result);
+      });
+      handle = ui.custom(component, { overlay: true, overlayOptions: { width: "80%", minWidth: 60, maxHeight: "80%" } });
+    });
+  }
+  // Plain fallback when no custom component support.
+  const labels = actions.map((item) => `${item.label} — ${item.category}`);
+  const picked = await ctx.ui.select("Pi Harness — what do you need?", labels);
+  const idx = labels.indexOf(picked);
+  return idx >= 0 ? actions[idx] : null;
+}
+
+async function runCommandCenterAction(action: CommandCenterAction, pi: any, ctx: any): Promise<void> {
+  switch (action.id) {
+    case "brief": return runBriefBuilder("", ctx);
+    case "done": return runDoneFromCommand(ctx);
+    case "blockers": return showDoneBlockers(ctx);
+    case "status": ctx.ui.notify(statusText(), "info"); return;
+    case "models": return showCapabilityHelp(ctx, "models");
+    case "local-llm": await maybeRegisterLocalLlmProviders(pi, ctx, true); return;
+    case "team": return showCapabilityHelp(ctx, "team");
+    case "research": return showCapabilityHelp(ctx, "research");
+    case "route": return showIntentRouting("", ctx);
+    case "memory": return showMemoryReview(ctx);
+    case "memory-why": return showMemoryWhyPrompt(ctx);
+    case "review": return showReviewSuggestion(ctx);
+    case "long-run": return showLongRunDashboard(ctx);
+    case "reset": return showResetHelp(ctx);
+    case "statusline": return configureStatusline("", ctx);
+    case "more":
+    default:
+      return showHarnessMore("", ctx);
+  }
+}
+
+class CommandCenterComponent {
+  private query = "";
+  private actions: CommandCenterAction[];
+  private filtered: CommandCenterAction[];
+  private selected = 0;
+  private theme: any;
+  private recommended: CommandCenterAction | null;
+  private onDone: (result: CommandCenterAction | null) => void;
+  private cachedWidth?: number;
+  private cachedLines?: string[];
+  focused = true;
+
+  constructor(actions: CommandCenterAction[], recommended: CommandCenterAction | null, theme: any, onDone: (result: CommandCenterAction | null) => void) {
+    this.actions = actions;
+    this.recommended = recommended;
+    this.theme = theme;
+    this.onDone = onDone;
+    this.filtered = [...actions];
+  }
+
+  handleInput(data: string): void {
+    if (matchesKey(data, Key.escape) || matchesKey(data, Key.ctrl("c"))) {
+      this.onDone(null);
+      return;
+    }
+    if (matchesKey(data, Key.enter)) {
+      const choice = this.filtered[this.selected] || null;
+      this.onDone(choice);
+      return;
+    }
+    if (matchesKey(data, Key.up)) {
+      if (this.filtered.length === 0) return;
+      this.selected = (this.selected - 1 + this.filtered.length) % this.filtered.length;
+      this.invalidate();
+      return;
+    }
+    if (matchesKey(data, Key.down) || matchesKey(data, Key.tab)) {
+      if (this.filtered.length === 0) return;
+      this.selected = (this.selected + 1) % this.filtered.length;
+      this.invalidate();
+      return;
+    }
+    if (matchesKey(data, Key.backspace)) {
+      if (this.query.length > 0) {
+        this.query = this.query.slice(0, -1);
+        this.applyFilter();
+      }
+      return;
+    }
+    if (typeof data === "string" && data.length === 1 && data >= " " && data.charCodeAt(0) < 127) {
+      this.query += data;
+      this.applyFilter();
+      return;
+    }
+  }
+
+  private applyFilter(): void {
+    const query = this.query.trim().toLowerCase();
+    this.filtered = query
+      ? this.actions.filter((action) => actionMatches(action, query))
+      : [...this.actions];
+    if (this.selected >= this.filtered.length) this.selected = Math.max(0, this.filtered.length - 1);
+    this.invalidate();
+  }
+
+  invalidate(): void {
+    this.cachedWidth = undefined;
+    this.cachedLines = undefined;
+  }
+
+  render(width: number): string[] {
+    if (this.cachedLines && this.cachedWidth === width) return this.cachedLines;
+    const theme = this.theme;
+    const lines: string[] = [];
+    const title = theme.fg("accent", " Pi Harness ") + theme.fg("muted", " command center");
+    lines.push(truncateToWidth(title, width));
+    const rec = this.recommended;
+    if (rec) {
+      lines.push(truncateToWidth(theme.fg("muted", " Recommended: ") + theme.fg("success", "→ ") + theme.fg("text", rec.label), width));
+    }
+    lines.push(truncateToWidth(theme.fg("muted", " Type to filter • ↑/↓ select • enter run • esc close"), width));
+    const prompt = theme.fg("muted", " search › ") + theme.fg("text", this.query || theme.fg("muted", "(everything)"));
+    lines.push(truncateToWidth(prompt, width));
+    lines.push(theme.fg("borderMuted", "─".repeat(Math.min(width, 80))));
+    if (this.filtered.length === 0) {
+      lines.push(truncateToWidth(theme.fg("warning", " No matches. Press backspace to clear filter."), width));
+      this.cachedLines = lines;
+      this.cachedWidth = width;
+      return this.cachedLines;
+    }
+    const grouped = new Map<string, CommandCenterAction[]>();
+    for (const action of this.filtered) {
+      const arr = grouped.get(action.category) || [];
+      arr.push(action);
+      grouped.set(action.category, arr);
+    }
+    const order = ["Tasks", "Capabilities", "Memory", "Safety", "Setup"];
+    const visibleActions: CommandCenterAction[] = [];
+    for (const cat of order) {
+      const items = grouped.get(cat);
+      if (!items) continue;
+      lines.push(truncateToWidth(theme.fg("borderAccent", `▸ ${cat}`), width));
+      for (const item of items) {
+        const idx = visibleActions.length;
+        visibleActions.push(item);
+        const isSel = this.actions.indexOf(item) === this.actions.indexOf(this.filtered[this.selected]);
+        const cursor = isSel ? theme.fg("accent", "▶") : theme.fg("muted", " ");
+        const label = isSel ? theme.fg("text", item.label) : theme.fg("text", item.label);
+        const shortcut = item.command ? "  " + theme.fg("dim", item.command) : "";
+        const top = `${cursor} ${label}${shortcut}`;
+        lines.push(truncateToWidth(top, width));
+        const desc = `    ${theme.fg("muted", item.description)}`;
+        lines.push(truncateToWidth(desc, width));
+      }
+    }
+    lines.push(theme.fg("borderMuted", "─".repeat(Math.min(width, 80))));
+    const hint = theme.fg("dim", " Tip: try \"why\", \"reset\", \"local\", or \"blocker\".");
+    lines.push(truncateToWidth(hint, width));
+    this.cachedLines = lines;
+    this.cachedWidth = width;
+    return this.cachedLines;
+  }
+}
+
+function actionMatches(action: CommandCenterAction, query: string): boolean {
+  if (action.label.toLowerCase().includes(query)) return true;
+  if (action.description.toLowerCase().includes(query)) return true;
+  if (action.category.toLowerCase().includes(query)) return true;
+  if (action.keywords.some((kw) => kw.includes(query))) return true;
+  if (action.command && action.command.toLowerCase().includes(query)) return true;
+  return false;
+}
+
+function showMemoryWhyPrompt(ctx: any) {
+  ctx.ui.notify("To inspect a memory entry, run `ph memory why <id>` from your shell. The id is shown next to each entry in /harness-memory.", "info");
+}
+
+function showReviewSuggestion(ctx: any) {
+  const result = runJsonScript("review-policy.mjs", ["suggest", "--json"]);
+  if (!result.ok) {
+    ctx.ui.notify("Review suggestion failed: " + (result.findings || []).join("; "), "warning");
+    return;
+  }
+  const lines = [
+    `Risk: ${result.task?.risk || "unknown"} → ${result.requirement || "none"}.`,
+    result.suggestion || "No active task; create one with /harness-brief.",
+  ];
+  if (Array.isArray(result.commands) && result.commands.length) {
+    lines.push("Commands:");
+    for (const cmd of result.commands) lines.push("  " + cmd);
+  }
+  ctx.ui.notify(lines.join("\n"), "info");
+}
+
+function showLongRunDashboard(ctx: any) {
+  const result = runJsonScript("long-run.mjs", ["dashboard", "--json"]);
+  const lines = result?.lines || ["No long-running work yet. Plan one with `ph run-long \"goal\"`."];
+  ctx.ui.notify(lines.join("\n"), "info");
+}
+
+function showDoneBlockers(ctx: any) {
+  const result = runJsonScript("done-blockers.mjs", ["--json"]);
+  const lines = result?.lines || ["Cannot inspect done state."];
+  ctx.ui.notify(lines.join("\n"), result?.ok ? "info" : "warning");
 }
 
 function commandCenterText(): string {
@@ -1486,12 +1807,12 @@ function showIntentRouting(args: string, ctx: any) {
     "Examples: research this with sources · use local model to scout · grill me to scope this · what is blocking done?",
   ];
   ctx.ui.notify(lines.join("\n"), "info");
-  if (!text) ctx.ui.setEditorText("I want to describe my task in plain English. Route me to the right harness mode before we start.");
+  // No editor prefill. User asks naturally; routes are visible above.
 }
 
 function showResetHelp(ctx: any) {
   ctx.ui.notify("Reset is safe by default: `ph reset` previews what would be removed; `ph reset --apply` removes only this project's local harness sidecar and registry entry, not project files. Then rerun the one-line curl installer.", "info");
-  ctx.ui.setEditorText("Explain how to reset and retry this harness setup safely. Do not remove project files.");
+  // No editor prefill.
 }
 
 function modelReadiness() {
@@ -1507,19 +1828,28 @@ function recommendedHarnessAction() {
 
 function showCapabilityHelp(ctx: any, topic: "models" | "team" | "research") {
   if (topic === "models") {
-    ctx.ui.notify("Models are set up through Pi, not by reading secret files. First run `ph models` for the terminal guide. In Pi, run /login, choose a provider, then /model. Profiles: local scout for low-risk summaries; cloud implementation for edits; fresh review for yellow/red work.", "info");
-    ctx.ui.setEditorText("Help me choose a model profile for this project. Walk me through /login and /model, and do not read or print secrets.");
+    const lines = [
+      "Model setup happens inside Pi:",
+      "  1. /login  — pick a provider (Anthropic, OpenAI, Claude Pro, ChatGPT Plus, etc.)",
+      "  2. /model  — pick the model to use this session",
+      "",
+      "Profiles to choose between:",
+      "  • local scout      — Ollama/LM Studio, cheap summaries and docs",
+      "  • cloud implementation — Claude Sonnet / GPT-5 class for real edits",
+      "  • fresh review     — separate model for yellow/red work before done",
+      "",
+      "The harness never reads or prints credentials.",
+    ];
+    ctx.ui.notify(lines.join("\n"), "info");
     return;
   }
   if (topic === "team") {
     const loaded = process.env.PI_HARNESS_ENABLE_PROJECT_PACKAGES === "1";
-    ctx.ui.notify(loaded ? "Team packages are available in this session. Start with /subagents-doctor, then ask for scout -> planner -> worker -> reviewer." : "Team tools are one command away. Exit Pi and run `ph team`; the launcher handles the safe package mode for you.", loaded ? "success" : "info");
-    ctx.ui.setEditorText(loaded ? "Run subagent diagnostics, list available agents, and propose a safe scout -> planner -> worker -> reviewer plan for my task." : "I want to use subagents/team review. Tell me to restart with `ph team`, then guide me safely.");
+    ctx.ui.notify(loaded ? "Team packages are available in this session. Start with /subagents-doctor, then plan scout -> planner -> worker -> reviewer." : "Team tools are one command away. Exit Pi and run `ph team`; the launcher handles the safe package mode for you.", loaded ? "success" : "info");
     return;
   }
   const loaded = process.env.PI_HARNESS_ENABLE_PROJECT_PACKAGES === "1";
   ctx.ui.notify(loaded ? "Research/MCP packages are available in this session. Use /mcp setup and prefer read-only, source-cited research first." : "Research tools are one command away. Exit Pi and run `ph research`; the launcher handles the safe package mode for you.", loaded ? "success" : "info");
-  ctx.ui.setEditorText(loaded ? "Help me set up read-only research/MCP for source-cited documentation lookup. Keep external writes gated." : "I want web/docs/MCP research. Tell me to restart with `ph research`, then guide me safely.");
 }
 
 function runDoneFromCommand(ctx: any) {
@@ -1552,27 +1882,91 @@ async function runBriefBuilder(args: string, ctx: any) {
     ctx.ui.notify(`Created ${task.id}. Edit ${relative(rootDir(), task.paths.packet)} with scope and verification.`, "info");
     return;
   }
-  const outcome = (await ctx.ui.input("What outcome do you want?", initial || "e.g. make setup one-command")) || initial || "Scoped task";
+  const outcome = (await ctx.ui.input("What outcome do you want, in plain English?", initial || "e.g. add resend-confirmation flow")) || initial || "Scoped task";
+  const why = (await ctx.ui.input("Why does this matter now?", "so we can answer this when we read the task next week")) || "";
   const inScope = (await ctx.ui.input("What is in scope?", "smallest useful change")) || "smallest useful change";
-  const outOfScope = (await ctx.ui.input("What should not change?", "credentials, unrelated files, production systems")) || "credentials, unrelated files, production systems";
-  const verify = (await ctx.ui.input("How should we prove it worked?", "one focused command or inspection")) || "one focused command or inspection";
-  const riskChoice = await ctx.ui.select("Risk level?", ["green — docs/tiny local", "yellow — code or workflow", "red — prod/security/external"]);
-  const risk: Risk = riskChoice?.startsWith("red") ? "red" : riskChoice?.startsWith("green") ? "green" : "yellow";
+  const outOfScope = (await ctx.ui.input("What should NOT change?", "credentials, unrelated files, production systems")) || "credentials, unrelated files, production systems";
+  const knownUnknowns = (await ctx.ui.input("What do you still NOT know?", "area I should scout first")) || "";
+  const verify = (await ctx.ui.input("How should we prove it worked? (one focused command or inspection)", "npm run test path-to-target")) || "one focused command or inspection";
+  const suggestion = suggestBriefShape(`${outcome} ${why} ${inScope} ${outOfScope}`);
+  const riskChoice = await ctx.ui.select(`Risk level? (suggested: ${suggestion.risk})`, ["green — docs/tiny local", "yellow — code or workflow", "red — prod/security/external"]);
+  const risk: Risk = riskChoice?.startsWith("red") ? "red" : riskChoice?.startsWith("green") ? "green" : (suggestion.risk as Risk) || "yellow";
   const title = outcome.split(/\s+/).slice(0, 8).join(" ");
   const task = createTask({ title, goal: outcome, risk });
-  writeFileSync(task.paths.packet, briefPacketMarkdown(task, { inScope, outOfScope, verify }), "utf8");
+  writeFileSync(task.paths.packet, briefPacketMarkdown(task, { why, inScope, outOfScope, knownUnknowns, verify, suggestion }), "utf8");
   setActiveTask(task.id, "harness-brief");
-  ctx.ui.notify(`Created scoped task ${task.id}\n${relative(rootDir(), task.paths.packet)}`, "success");
-  ctx.ui.setEditorText(`/skill:harness implement ${task.id}: confirm scope, make the smallest safe change, run checks, write evidence, and finish.`);
+  const summaryLines = [
+    `Created scoped task ${task.id}`,
+    `Packet: ${relative(rootDir(), task.paths.packet)}`,
+  ];
+  if (suggestion.hidden.length) summaryLines.push("Possible hidden risks: " + suggestion.hidden.join(", "));
+  if (suggestion.checks.length) summaryLines.push("Suggested checks: " + suggestion.checks.join(", "));
+  if (suggestion.capabilities.length) summaryLines.push("Likely capability needs: " + suggestion.capabilities.join(", "));
+  if (risk !== "green") summaryLines.push("Risk is " + risk + "; run `/harness-review` to plan a fresh-context review lane before `ph done`.");
+  ctx.ui.notify(summaryLines.join("\n"), "success");
+  // No editor prefill.
 }
 
-function briefPacketMarkdown(task: TaskRecord, brief: { inScope: string; outOfScope: string; verify: string }): string {
+interface BriefSuggestion {
+  risk: Risk;
+  hidden: string[];
+  checks: string[];
+  capabilities: string[];
+}
+
+function suggestBriefShape(input: string): BriefSuggestion {
+  const text = input.toLowerCase();
+  const hidden: string[] = [];
+  const checks: string[] = [];
+  const capabilities: string[] = [];
+  let risk: Risk = "yellow";
+  if (/(prod|production|deploy|release|migration|schema|payment|billing|auth|login|secret|credential|delete|drop|truncate)/.test(text)) {
+    risk = "red";
+    hidden.push("production/data risk");
+    checks.push("manual smoke before merge");
+    checks.push("explicit external-write intent + read-back");
+    capabilities.push("fresh-context review (required by policy)");
+  } else if (/(refactor|rename|api|interface|contract|rate limit|cache|migration|rollout|flag)/.test(text)) {
+    risk = "yellow";
+    hidden.push("interface/contract breakage");
+    checks.push("focused unit/integration tests");
+    capabilities.push("fresh-context review (recommended)");
+  } else if (/(docs|readme|comment|typo|wording|copy|polish|cleanup)/.test(text)) {
+    risk = "green";
+    capabilities.push("local LLM scout/docs profile is enough");
+  } else {
+    capabilities.push("cloud implementation model for edits");
+  }
+  if (/(test|flake|flakey|flakiness|timeout)/.test(text)) {
+    checks.push("run the specific failing test 5x to confirm stability");
+  }
+  if (/(network|external|api|webhook|integration|http|fetch)/.test(text)) {
+    hidden.push("external dependency may rate-limit or be down");
+    checks.push("mock or stub the external surface");
+  }
+  if (/(perf|performance|slow|memory|leak|cpu)/.test(text)) {
+    checks.push("capture before/after numbers in evidence");
+  }
+  if (/(security|crypto|password|hash|sanitize|xss|sql)/.test(text)) {
+    risk = "red";
+    hidden.push("security regression");
+    capabilities.push("fresh-context review (required by policy)");
+  }
+  return { risk, hidden: [...new Set(hidden)], checks: [...new Set(checks)], capabilities: [...new Set(capabilities)] };
+}
+
+function briefPacketMarkdown(task: TaskRecord, brief: { why: string; inScope: string; outOfScope: string; knownUnknowns: string; verify: string; suggestion: BriefSuggestion }): string {
+  const reviewLine = task.risk === "red" ? "- Reviewer: fresh-context review lane REQUIRED before finish." : task.risk === "yellow" ? "- Reviewer: fresh-context review lane recommended before finish." : "- Reviewer: optional; risk is green.";
   return [
     `# Task Packet: ${task.id}`,
     "",
     "## Goal",
     "",
     task.goal,
+    "",
+    "## Why",
+    "",
+    brief.why || "(not provided)",
     "",
     "## Workspace",
     "",
@@ -1583,7 +1977,9 @@ function briefPacketMarkdown(task: TaskRecord, brief: { inScope: string; outOfSc
     "## Risk",
     "",
     `- Risk level: ${task.risk}`,
-    "- Reason: selected through /harness-brief task-shaping flow",
+    `- Reason: selected through /harness-brief; suggested risk was ${brief.suggestion.risk}.`,
+    ...(brief.suggestion.hidden.length ? [`- Possible hidden risks: ${brief.suggestion.hidden.join(", ")}`] : []),
+    reviewLine,
     "",
     "## Scope",
     "",
@@ -1594,6 +1990,7 @@ function briefPacketMarkdown(task: TaskRecord, brief: { inScope: string; outOfSc
     "## Current State",
     "",
     "- Created from the interactive harness brief builder.",
+    brief.knownUnknowns ? `- Known unknowns: ${brief.knownUnknowns}` : "- Known unknowns: (not provided)",
     "",
     "## Desired Behavior",
     "",
@@ -1602,8 +1999,13 @@ function briefPacketMarkdown(task: TaskRecord, brief: { inScope: string; outOfSc
     "## Verification",
     "",
     `- Required checks: ${brief.verify}`,
+    ...brief.suggestion.checks.map((check) => `- Suggested check: ${check}`),
     "- Optional checks: broader tests when risk justifies them.",
     "- Manual checks: record screenshots or command output when relevant.",
+    "",
+    "## Capability Needs",
+    "",
+    ...(brief.suggestion.capabilities.length ? brief.suggestion.capabilities.map((cap) => `- ${cap}`) : ["- (none beyond default)"]),
     "",
     "## Stop Conditions",
     "",
@@ -1635,7 +2037,7 @@ async function maybeRegisterLocalLlmProviders(pi: any, ctx: any, explicit: boole
   }
   if (registered.length) {
     ctx.ui.notify(`Local LLM provider ready. ${registered.join("; ")}\nUse /model to choose one for low-risk scouting/summaries/check triage.`, "success");
-    ctx.ui.setEditorText("Use a local model for a low-risk scouting or summarization task. Do not make it the default for risky implementation.");
+    // No editor prefill.
     return;
   }
   if (explicit) {
@@ -1675,18 +2077,13 @@ async function fetchJson(url: string, timeoutMs: number): Promise<{ ok: boolean;
 function presentAssistIfRequested(ctx: any) {
   const assist = process.env.PI_HARNESS_ASSIST || "";
   if (!assist) return;
-  if (assist === "models") return showCapabilityHelp(ctx, "models");
-  if (assist === "team") return showCapabilityHelp(ctx, "team");
-  if (assist === "research") return showCapabilityHelp(ctx, "research");
-  if (assist === "memory") return showMemoryReview(ctx);
-  if (assist === "brief") {
-    ctx.ui.notify("Task builder ready. Press enter to run /harness-brief, or edit the prompt first.", "info");
-    ctx.ui.setEditorText("/harness-brief");
-    return;
-  }
-  if (assist === "local-llm") {
-    ctx.ui.notify("Local LLM mode opened. If models were found, use /model; otherwise start Ollama or LM Studio and run /harness-local-llm.", "info");
-  }
+  // Notifications only. No editor prefill; the user may not have a model yet.
+  if (assist === "models") return ctx.ui.notify("Run /login, then /model. The harness will not read or print credentials. Try /harness-models for model profiles.", "info");
+  if (assist === "team") return ctx.ui.notify("Team/subagent tools are available in this session. Use /harness-team for a guided plan.", "info");
+  if (assist === "research") return ctx.ui.notify("Research/MCP tools are available in this session. Use /harness-research for a guided plan.", "info");
+  if (assist === "memory") return ctx.ui.notify("Memory review opened. Use /harness-memory to inspect, search, or forget entries.", "info");
+  if (assist === "brief") return ctx.ui.notify("Task builder ready. Type /harness-brief when you are ready to scope.", "info");
+  if (assist === "local-llm") return ctx.ui.notify("Local LLM mode opened. Use /harness-local-llm to detect/register Ollama or LM Studio.", "info");
 }
 
 function ensureDirs() {

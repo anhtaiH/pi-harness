@@ -29,6 +29,18 @@ try {
   const modelsJson = JSON.parse(models.stdout || "{}");
   const smoke = run(["scripts/first-run-smoke.mjs", "--skip-install", "--json"], {}, 150_000);
   const smokeJson = JSON.parse(smoke.stdout || "{}");
+  const dashboard = run(["scripts/long-run.mjs", "dashboard", "--json"]);
+  const dashboardJson = JSON.parse(dashboard.stdout || "{}");
+  const reviewSuggest = run(["scripts/review-policy.mjs", "suggest", "--json"]);
+  const reviewSuggestJson = JSON.parse(reviewSuggest.stdout || "{}");
+  const memoryWhy = readFileSync(pathFromRoot("scripts/memory.mjs"), "utf8").includes("command === \"why\"");
+  const blockersExists = existsSync(pathFromRoot("scripts/done-blockers.mjs"));
+  const extensionText = readFileSync(pathFromRoot(".pi/extensions/harness/index.ts"), "utf8");
+  const noAutoPrefill = !extensionText.includes("setEditorText(\"/harness-brief\")")
+    && !/presentAssistIfRequested[\s\S]*?setEditorText\(/.test(extensionText);
+  const installerHasTarballFallback = readFileSync(pathFromRoot("bin/install"), "utf8").includes("install_via_tarball");
+  const statuslineRedesigned = extensionText.includes("renderStatusline") && !extensionText.includes("try:/harness");
+  const tuiCommandCenter = extensionText.includes("CommandCenterComponent");
 
   const urlPathnameRegression = [
     "scripts/lib/harness-state.mjs",
@@ -76,9 +88,42 @@ try {
     && modelsJson.profiles?.some((item) => item.id === "cloud-implementation")
     && smoke.status === 0
     && smokeJson.ok === true
+    && dashboard.status === 0
+    && Array.isArray(dashboardJson.lines)
+    && reviewSuggest.status === 0
+    && typeof reviewSuggestJson.suggestion === "string"
+    && memoryWhy
+    && blockersExists
+    && noAutoPrefill
+    && installerHasTarballFallback
+    && statuslineRedesigned
+    && tuiCommandCenter
     && urlPathnameRegression.length === 0;
 
-  console.log(JSON.stringify({ ok, startOk: startJson.ok, projectFiles, cards: moreJson.cards?.map((card) => card.id), localAny: localJson.detected?.any, localProfiles: localJson.profiles?.map((profile) => profile.id), memoryCount: memoryJson.count, shimInstalled: Boolean(shimJson.shim), route: routeJson.routes?.map((item) => item.id), modelProfiles: modelsJson.profiles?.map((item) => item.id), firstRunSmoke: smokeJson.ok, confusingNextStep, statuslineCards: statuslineJson.cards?.map((card) => card.id), urlPathnameRegression }, null, 2));
+  console.log(JSON.stringify({
+    ok,
+    startOk: startJson.ok,
+    projectFiles,
+    cards: moreJson.cards?.map((card) => card.id),
+    localAny: localJson.detected?.any,
+    localProfiles: localJson.profiles?.map((profile) => profile.id),
+    memoryCount: memoryJson.count,
+    shimInstalled: Boolean(shimJson.shim),
+    route: routeJson.routes?.map((item) => item.id),
+    modelProfiles: modelsJson.profiles?.map((item) => item.id),
+    firstRunSmoke: smokeJson.ok,
+    confusingNextStep,
+    statuslineCards: statuslineJson.cards?.map((card) => card.id),
+    urlPathnameRegression,
+    longRunDashboard: dashboardJson.ok,
+    reviewSuggestion: reviewSuggestJson.suggestion,
+    memoryWhy,
+    blockersExists,
+    noAutoPrefill,
+    installerHasTarballFallback,
+    statuslineRedesigned,
+    tuiCommandCenter,
+  }, null, 2));
   process.exit(ok ? 0 : 1);
 } finally {
   rmSync(tmp, { recursive: true, force: true });

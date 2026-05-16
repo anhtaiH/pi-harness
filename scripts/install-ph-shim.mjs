@@ -37,12 +37,26 @@ function printHuman(result) {
 function chooseDir() {
   if (process.env.PI_HARNESS_BIN_DIR) return process.env.PI_HARNESS_BIN_DIR;
   const home = process.env.HOME || "";
-  const candidates = pathDirs().filter((dir) => {
-    if (!dir) return false;
-    if (home && dir.startsWith(home)) return isUsableDir(dir);
-    return ["/opt/homebrew/bin", "/usr/local/bin"].includes(dir) && isUsableDir(dir);
-  });
-  if (candidates.length) return candidates[0];
+  const pathOnPath = new Set(pathDirs());
+  // Prefer stable user-controlled directories that are also on PATH.
+  const preferred = [
+    home ? join(home, ".local", "bin") : "",
+    "/opt/homebrew/bin",
+    "/usr/local/bin",
+    home ? join(home, "bin") : "",
+  ].filter(Boolean);
+  for (const dir of preferred) {
+    if (!pathOnPath.has(dir)) continue;
+    if (isUsableDir(dir)) return dir;
+  }
+  // Fall back to any PATH entry the user owns, but never inside a managed agent/state directory.
+  for (const dir of pathDirs()) {
+    if (!dir) continue;
+    if (!home || !dir.startsWith(home)) continue;
+    if (/\.(pi-agent|pi|cache|cargo|asdf|nvm)\b/.test(dir)) continue;
+    if (isUsableDir(dir)) return dir;
+  }
+  // Last resort: ~/.local/bin (we will warn that PATH does not include it).
   return home ? join(home, ".local", "bin") : "";
 }
 

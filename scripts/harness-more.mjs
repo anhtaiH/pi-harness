@@ -24,7 +24,7 @@ function allCards() {
       summary: "One command connects the current project to a local sidecar, runs useful setup, and keeps project writes off by default.",
       try: ["curl -fsSL https://raw.githubusercontent.com/anhtaiH/pi-harness/main/bin/install | bash", ph + " start"],
       insidePi: ["/harness"],
-      guardrails: ["Local sidecar is default.", "No shell rc edits; setup writes an inspectable alias snippet.", "Repo mode remains explicit."],
+      guardrails: ["Local sidecar is default.", "Repo mode is explicit; project writes stay off otherwise.", "`ph` shim is installed in a writable PATH directory or you get a direct launcher fallback."],
     },
     {
       id: "models",

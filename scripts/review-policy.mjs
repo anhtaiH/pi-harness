@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 import { hasFlag, parseFlag, pathFromRoot, printResult, readJson } from "./lib/harness-state.mjs";
@@ -77,15 +77,55 @@ if (command === "plan") {
   output({ ok, command, taskId, risk: task.risk, requirement, planned: true, applied: true, lane: parsed?.lane || null, warnings: [], findings: ok ? [] : parsed?.findings || [result.stderr || result.stdout || `exit ${result.status}`], recommendation: ok ? "Review lane planned. Run or record review findings before finishing risky work." : "Fix review-lane planning failure." }, "review policy plan");
 }
 
+if (command === "suggest") {
+  const id = taskId || activeOrOpenTaskId();
+  if (!id) output({ ok: true, command, requirement: "none", suggestion: "No active task to review. Create one with /harness-brief.", commands: [], findings: [], warnings: [] }, "review policy");
+  const task = readTask(id);
+  if (!task) output({ ok: false, taskId: id, findings: [`unknown task: ${id}`], warnings: [] }, "review policy", 2);
+  const requirement = normalize(policy[task.risk] || "none");
+  const state = reviewState(id);
+  const suggestion = requirement === "required"
+    ? `Risk is ${task.risk}; fresh-context review is REQUIRED before \`ph done\`. Plan a lane now.`
+    : requirement === "recommended"
+      ? `Risk is ${task.risk}; fresh-context review is recommended before \`ph done\`.`
+      : `Risk is ${task.risk}; no independent review required, but you may run one for confidence.`;
+  const commands = state.lanes > 0
+    ? [
+        `ph review:lane record-finding --lane ${state.laneIds[0]}`,
+        `ph review:lane run --lane ${state.laneIds[0]} --live`,
+      ]
+    : [
+        `ph review-policy plan --task ${id} --apply`,
+        `ph review:lane record-finding --lane <lane-id> --severity info --title "No blockers"`,
+      ];
+  output({ ok: true, command, taskId: id, task: { id: task.id, risk: task.risk }, requirement, state, suggestion, commands, findings: [], warnings: [] }, "review policy");
+}
+
 if (command === "explain") {
   output({ ok: true, policy, findings: [], warnings: [], recommendation: "green=none, yellow=recommended, red=required by default. Override harness.config.json#reviewPolicy.requiredByRisk." }, "review policy");
 }
 
-console.error("usage: node scripts/review-policy.mjs doctor|check|plan|explain --task <taskId> [--apply] [--json]");
+console.error("usage: node scripts/review-policy.mjs doctor|check|plan|suggest|explain --task <taskId> [--apply] [--json]");
 process.exit(2);
 
 function readTask(id) {
   return readJson(pathFromRoot("state", "tasks", id, "task.json"), null);
+}
+
+function activeOrOpenTaskId() {
+  const active = readJson(pathFromRoot("state", "active-task.json"), null);
+  if (active?.taskId) return active.taskId;
+  const dir = pathFromRoot("state", "tasks");
+  if (!existsSync(dir)) return "";
+  try {
+    const names = readdirSync(dir);
+    const tasks = names
+      .map((name) => readJson(join(dir, name, "task.json"), null))
+      .filter(Boolean)
+      .filter((task) => !["done", "blocked"].includes(task.status || ""))
+      .sort((a, b) => String(b.updatedAt || "").localeCompare(String(a.updatedAt || "")));
+    return tasks[0]?.id || "";
+  } catch { return ""; }
 }
 
 function reviewState(id) {

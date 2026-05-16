@@ -9,18 +9,35 @@ set -euo pipefail
 
 REPO_URL="${PI_HARNESS_REPO_URL:-https://github.com/anhtaiH/pi-harness.git}"
 BRANCH="${PI_HARNESS_BRANCH:-main}"
+TARBALL_URL="${PI_HARNESS_TARBALL_URL:-https://codeload.github.com/anhtaiH/pi-harness/tar.gz/refs/heads/$BRANCH}"
 CALLER_CWD="$PWD"
 
-if ! command -v git >/dev/null 2>&1; then
-  echo "Pi Harness needs git for the one-line installer." >&2
-  echo "Install Git from https://git-scm.com/downloads, then run the same command again." >&2
+NODE_OK=0
+GIT_OK=0
+if command -v node >/dev/null 2>&1; then NODE_OK=1; fi
+if command -v git  >/dev/null 2>&1; then GIT_OK=1; fi
+
+if [[ "$NODE_OK" != "1" ]]; then
+  echo "Pi Harness needs Node.js 20+ for setup." >&2
+  echo "Install Node.js LTS from https://nodejs.org/, then rerun this command." >&2
+  case "$(uname -s 2>/dev/null || echo unknown)" in
+    Darwin) echo "  On macOS with Homebrew: brew install node" >&2 ;;
+    Linux)  echo "  On Ubuntu/Debian: sudo apt-get install -y nodejs npm" >&2 ;;
+  esac
   exit 1
 fi
 
-if ! command -v node >/dev/null 2>&1; then
-  echo "Pi Harness needs Node.js 20+ for setup." >&2
-  echo "Install Node.js LTS from https://nodejs.org/, then run the same command again." >&2
-  exit 1
+if [[ "$GIT_OK" != "1" ]]; then
+  echo "git is not installed. Falling back to a tarball download (no updates)." >&2
+  if ! command -v curl >/dev/null 2>&1 && ! command -v wget >/dev/null 2>&1; then
+    echo "Pi Harness needs git, or curl/wget to use the tarball fallback." >&2
+    echo "Install Git from https://git-scm.com/downloads, then rerun this command." >&2
+    exit 1
+  fi
+  if ! command -v tar >/dev/null 2>&1; then
+    echo "Pi Harness needs tar to extract the tarball fallback." >&2
+    exit 1
+  fi
 fi
 
 case "$(uname -s 2>/dev/null || echo unknown)" in
@@ -37,7 +54,46 @@ SOURCE_DIR="${PI_HARNESS_SOURCE_DIR:-$HARNESS_HOME/source}"
 
 mkdir -p "$(dirname "$SOURCE_DIR")"
 
-if [[ -d "$SOURCE_DIR/.git" ]]; then
+install_via_tarball() {
+  local tmp
+  tmp="$(mktemp -d)"
+  local archive="$tmp/pi-harness.tar.gz"
+  if command -v curl >/dev/null 2>&1; then
+    if ! curl -fL "$TARBALL_URL" -o "$archive"; then
+      echo "Failed to download $TARBALL_URL" >&2
+      echo "Check your network, or install Git and rerun this command." >&2
+      rm -rf "$tmp"
+      exit 1
+    fi
+  elif command -v wget >/dev/null 2>&1; then
+    if ! wget -qO "$archive" "$TARBALL_URL"; then
+      echo "Failed to download $TARBALL_URL" >&2
+      rm -rf "$tmp"
+      exit 1
+    fi
+  else
+    echo "Need curl or wget to download the tarball." >&2
+    rm -rf "$tmp"
+    exit 1
+  fi
+  mkdir -p "$SOURCE_DIR"
+  if ! tar -xzf "$archive" -C "$tmp"; then
+    echo "Failed to extract the harness tarball." >&2
+    rm -rf "$tmp"
+    exit 1
+  fi
+  local extracted
+  extracted="$(find "$tmp" -maxdepth 1 -type d -name 'pi-harness-*' | head -n 1)"
+  if [[ -z "$extracted" ]]; then
+    echo "Unexpected tarball layout. Aborting." >&2
+    rm -rf "$tmp"
+    exit 1
+  fi
+  cp -R "$extracted/". "$SOURCE_DIR/"
+  rm -rf "$tmp"
+}
+
+if [[ "$GIT_OK" == "1" && -d "$SOURCE_DIR/.git" ]]; then
   echo "Updating Pi Harness at $SOURCE_DIR"
   if [[ "$(git -C "$SOURCE_DIR" rev-parse --is-shallow-repository 2>/dev/null || echo false)" == "true" ]]; then
     git -C "$SOURCE_DIR" fetch --unshallow origin "$BRANCH" || git -C "$SOURCE_DIR" fetch --deepen 100 origin "$BRANCH"
@@ -52,16 +108,35 @@ if [[ -d "$SOURCE_DIR/.git" ]]; then
     git -C "$SOURCE_DIR" checkout -q -B "$BRANCH" FETCH_HEAD
   else
     echo "Could not fast-forward the existing harness source at $SOURCE_DIR." >&2
-    echo "The checkout has local edits. Move it aside, commit/stash local edits, or set PI_HARNESS_SOURCE_DIR to a fresh location." >&2
+    echo "" >&2
+    echo "What to do:" >&2
+    echo "  1. The checkout at $SOURCE_DIR has uncommitted local edits." >&2
+    echo "  2. Move it aside:   mv \"$SOURCE_DIR\" \"$SOURCE_DIR.broken-$(date +%s)\"" >&2
+    echo "  3. Or commit/stash, then rerun this command." >&2
+    echo "  4. Or set PI_HARNESS_SOURCE_DIR to a fresh location." >&2
     exit 1
   fi
+elif [[ -e "$SOURCE_DIR" && "$GIT_OK" != "1" && ! -f "$SOURCE_DIR/bin/pi-harness" ]]; then
+  echo "Cannot install into existing non-harness path: $SOURCE_DIR" >&2
+  echo "Move it aside or set PI_HARNESS_SOURCE_DIR to another location." >&2
+  exit 1
+elif [[ -e "$SOURCE_DIR" && "$GIT_OK" != "1" && -f "$SOURCE_DIR/bin/pi-harness" ]]; then
+  echo "Re-extracting Pi Harness tarball into $SOURCE_DIR (git not available; install once, no automatic updates)." >&2
+  rm -rf "$SOURCE_DIR"
+  install_via_tarball
 elif [[ -e "$SOURCE_DIR" ]]; then
   echo "Cannot install into existing non-git path: $SOURCE_DIR" >&2
   echo "Move it aside or set PI_HARNESS_SOURCE_DIR to another location." >&2
   exit 1
-else
+elif [[ "$GIT_OK" == "1" ]]; then
   echo "Installing Pi Harness into $SOURCE_DIR"
-  git clone --depth 1 --branch "$BRANCH" "$REPO_URL" "$SOURCE_DIR"
+  if ! git clone --depth 1 --branch "$BRANCH" "$REPO_URL" "$SOURCE_DIR"; then
+    echo "git clone failed. Falling back to tarball download." >&2
+    install_via_tarball
+  fi
+else
+  echo "Installing Pi Harness tarball into $SOURCE_DIR (no git found; updates require reinstalling)." >&2
+  install_via_tarball
 fi
 
 if [[ "${PI_HARNESS_INSTALL_PH:-1}" != "0" ]]; then

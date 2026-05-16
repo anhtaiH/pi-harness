@@ -10,7 +10,7 @@ const json = hasFlag(args, "--json");
 const stateDir = pathFromRoot("state", "long-runs");
 
 if (command === "plan" || command === "start") {
-  const goal = parseFlag(args, "--goal", args.slice(1).filter((arg) => !arg.startsWith("--")).join(" ")).trim();
+  const goal = parseFlag(args, "--goal", positionalGoal()).trim();
   if (!goal) output({ ok: false, findings: ["missing long-running goal"] }, "long run plan", 2);
   const id = `lr-${new Date().toISOString().replace(/\D/g, "").slice(0, 14)}-${slug(goal).slice(0, 32)}-${randomUUID().slice(0, 8)}`;
   const dir = join(stateDir, id);
@@ -89,6 +89,54 @@ if (command === "list") {
   output({ ok: true, command, runs, findings: [] }, "long runs");
 }
 
+if (command === "dashboard") {
+  const runs = listRuns();
+  const lines = [];
+  if (!runs.length) {
+    lines.push("No long-running work. Plan one with `ph run-long \"goal\"`.");
+  } else {
+    const now = Date.now();
+    for (const run of runs.slice(0, 8)) {
+      const lastHeartbeat = lastHeartbeatTime(run);
+      const minutesSince = lastHeartbeat ? Math.round((now - lastHeartbeat) / 60_000) : null;
+      const watchdog = run.heartbeatEveryMinutes || 60;
+      const stale = minutesSince !== null && minutesSince > watchdog * 2;
+      const checkpointCount = (run.checkpoints || []).length;
+      const checkpoint = lastCheckpoint(run);
+      const sessionDelta = sessionChangedSinceLastCheckpoint(run);
+      lines.push(`${stale ? "⚠" : "✓"} ${run.id}`);
+      lines.push(`    goal:        ${run.goal}`);
+      lines.push(`    status:      ${run.status} (risk ${run.risk})`);
+      lines.push(`    checkpoints: ${checkpointCount}${checkpoint ? `, last: ${checkpoint.timestamp} "${checkpoint.note || ""}"` : ""}`);
+      lines.push(`    heartbeat:   ${minutesSince === null ? "—" : `${minutesSince} min ago (watchdog ${watchdog} min)`}`);
+      if (stale) lines.push(`    ⚠ heartbeat overdue. Pause/resume with: ph run-long-heartbeat ${run.id} --status paused --note "checking in"`);
+      if (sessionDelta) lines.push(`    since last checkpoint:\n${sessionDelta.split("\n").map((line) => `      ${line}`).join("\n")}`);
+    }
+  }
+  output({ ok: true, command, runs, lines, findings: [] }, "long run dashboard");
+}
+
+if (command === "pause") {
+  const id = requiredId({ allowLatest: true });
+  const run = loadRun(id);
+  run.status = "paused";
+  run.updatedAt = nowIso();
+  saveRun(run);
+  appendJsonl(join(stateDir, id, "heartbeat.jsonl"), { timestamp: run.updatedAt, event: "pause", status: run.status, note: parseFlag(args, "--note", "paused") });
+  writeFileSync(join(stateDir, id, "resume-prompt.md"), renderResumePrompt(run), "utf8");
+  output({ ok: true, command, run, findings: [], next: [`Run paused. Resume with: ph resume-long ${id}`] }, "long run pause");
+}
+
+if (command === "changed") {
+  const id = requiredId({ allowLatest: true });
+  const run = loadRun(id);
+  const diff = sessionChangedSinceLastCheckpoint(run);
+  const lines = diff
+    ? [`Changes since last checkpoint for ${id}:`, ...diff.split(/\r?\n/).map((line) => "  " + line)]
+    : [`No checkpoint found yet for ${id}. Record one with: ph run-long-checkpoint ${id} --note "starting"`];
+  output({ ok: true, command, run, diff, lines, findings: [] }, "long run changed");
+}
+
 if (command === "doctor") {
   const runs = listRuns();
   const findings = [];
@@ -101,8 +149,21 @@ if (command === "doctor") {
   output({ ok: findings.length === 0, command, count: runs.length, runs, findings }, "long run doctor");
 }
 
-console.error("usage: node scripts/long-run.mjs plan <goal>|checkpoint <id>|heartbeat <id>|resume <id>|list|doctor [--json]");
+console.error("usage: node scripts/long-run.mjs plan <goal>|checkpoint <id>|heartbeat <id>|resume <id>|list|dashboard|pause <id>|changed <id>|doctor [--json]");
 process.exit(2);
+
+function positionalGoal() {
+  const knownFlags = new Set(["--goal", "--risk", "--heartbeat-minutes", "--max-minutes", "--max-sessions", "--review-every", "--milestone", "--id", "--note", "--task", "--status"]);
+  const tokens = [];
+  for (let i = 1; i < args.length; i += 1) {
+    const arg = args[i];
+    if (!arg.startsWith("--")) { tokens.push(arg); continue; }
+    if (knownFlags.has(arg)) { i += 1; continue; }
+    // unknown --flag value pair; skip both to stay safe
+    i += 1;
+  }
+  return tokens.join(" ");
+}
 
 function requiredId(options = {}) {
   const explicit = parseFlag(args, "--id", args.slice(1).find((arg) => !arg.startsWith("--")) || "");
@@ -251,6 +312,46 @@ function parseMilestones(goal) {
 function gitStatus() {
   const result = spawnSync("git", ["status", "--short"], { cwd: process.env.PI_HARNESS_PROJECT_ROOT || pathFromRoot(), encoding: "utf8", timeout: 10_000, maxBuffer: 256 * 1024 });
   return { git: result.status === 0, status: (result.stdout || "").slice(0, 4000), error: result.status === 0 ? "" : (result.stderr || "git status unavailable").slice(0, 500) };
+}
+
+function lastHeartbeatTime(run) {
+  const path = join(stateDir, run.id, "heartbeat.jsonl");
+  if (!existsSync(path)) return null;
+  const lines = readFileSync(path, "utf8").trim().split(/\r?\n/).reverse();
+  for (const line of lines) {
+    try {
+      const entry = JSON.parse(line);
+      const time = Date.parse(entry.timestamp || "");
+      if (!Number.isNaN(time)) return time;
+    } catch {}
+  }
+  return null;
+}
+
+function lastCheckpoint(run) {
+  const path = join(stateDir, run.id, "checkpoints.jsonl");
+  if (!existsSync(path)) return null;
+  const lines = readFileSync(path, "utf8").trim().split(/\r?\n/).reverse();
+  for (const line of lines) {
+    try { return JSON.parse(line); } catch {}
+  }
+  return null;
+}
+
+function sessionChangedSinceLastCheckpoint(run) {
+  const checkpoint = lastCheckpoint(run);
+  if (!checkpoint?.snapshot?.status) return null;
+  const current = gitStatus().status || "";
+  if (current === checkpoint.snapshot.status) return "(no git changes since last checkpoint)";
+  const baseLines = new Set(checkpoint.snapshot.status.split(/\r?\n/).filter(Boolean));
+  const currentLines = current.split(/\r?\n/).filter(Boolean);
+  const added = currentLines.filter((line) => !baseLines.has(line));
+  const removed = [...baseLines].filter((line) => !currentLines.includes(line));
+  const lines = [];
+  for (const line of added.slice(0, 20)) lines.push("+ " + line);
+  for (const line of removed.slice(0, 20)) lines.push("- " + line);
+  if (!lines.length) return "(only whitespace differences in git status)";
+  return lines.join("\n");
 }
 
 function rel(targetPath) {

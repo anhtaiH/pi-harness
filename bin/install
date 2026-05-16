@@ -48,9 +48,12 @@ if [[ -d "$SOURCE_DIR/.git" ]]; then
   git -C "$SOURCE_DIR" checkout -q "$BRANCH" 2>/dev/null || git -C "$SOURCE_DIR" checkout -q -B "$BRANCH"
   if git -C "$SOURCE_DIR" merge-base --is-ancestor HEAD FETCH_HEAD; then
     git -C "$SOURCE_DIR" merge --ff-only -q FETCH_HEAD
+  elif [[ -z "$(git -C "$SOURCE_DIR" status --porcelain)" ]]; then
+    echo "Existing harness source cannot fast-forward, likely due to a shallow clone. Resetting the clean installer-managed source to origin/$BRANCH."
+    git -C "$SOURCE_DIR" checkout -q -B "$BRANCH" FETCH_HEAD
   else
     echo "Could not fast-forward the existing harness source at $SOURCE_DIR." >&2
-    echo "Move that directory aside, commit/stash local edits, or set PI_HARNESS_SOURCE_DIR to a fresh location." >&2
+    echo "The checkout has local edits. Move it aside, commit/stash local edits, or set PI_HARNESS_SOURCE_DIR to a fresh location." >&2
     exit 1
   fi
 elif [[ -e "$SOURCE_DIR" ]]; then

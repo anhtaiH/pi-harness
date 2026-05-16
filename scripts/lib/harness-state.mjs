@@ -1,7 +1,8 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync, writeSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
-export const root = new URL("../..", import.meta.url).pathname.replace(/\/$/, "");
+export const root = fileURLToPath(new URL("../..", import.meta.url)).replace(/\/$/, "");
 
 export function pathFromRoot(...parts) {
   return join(root, ...parts);

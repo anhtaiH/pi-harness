@@ -1,9 +1,10 @@
 import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const node = process.execPath;
-const root = new URL("..", import.meta.url).pathname;
+const root = fileURLToPath(new URL("..", import.meta.url)).replace(/\/$/, "");
 const script = "scripts/writer-lock.mjs";
 const lockPath = join(root, "state", "locks", "writer-lock.json");
 const originalLock = existsSync(lockPath) ? readFileSync(lockPath, "utf8") : null;
@@ -29,7 +30,7 @@ try {
 
 function run(args, options = {}) {
   const result = spawnSync(node, [script, ...args], {
-    cwd: new URL("..", import.meta.url).pathname,
+    cwd: root,
     encoding: "utf8",
   });
   outputs.push({ args, status: result.status, stdout: result.stdout, stderr: result.stderr });

@@ -38,7 +38,7 @@ if (findings.length === 0) {
     const result = runNode(adoptArgs, 120_000);
     adoption = parseJson(result.stdout);
     if (result.status !== 0 || adoption?.ok === false || !adoption) {
-      findings.push(...(adoption?.findings || [`project connection exited ${result.status}`]));
+      findings.push(...(adoption?.findings || [commandFailure("project connection", result)]));
     } else {
       sidecarDir = adoption.mode?.sidecarDir || "";
       actions.push({ id: "connect-project", title: dryRun ? "Preview local harness connection" : "Connect local harness", status: "ok", applied: !dryRun, path: sidecarDir, why: "Keep harness code, installs, sessions, and auth outside the project unless repo mode is requested." });
@@ -60,7 +60,7 @@ if (!dryRun && findings.length === 0) {
     setup = parseJson(result.stdout);
     const missingDepsOnly = !install && Array.isArray(setup?.findings) && setup.findings.length > 0 && setup.findings.every((finding) => String(finding).includes("node_modules missing"));
     if ((result.status !== 0 || setup?.ok === false || !setup) && !missingDepsOnly) {
-      findings.push(...(setup?.findings || [`setup exited ${result.status}`, result.stderr.trim()].filter(Boolean)));
+      findings.push(...(setup?.findings || [commandFailure("setup", result)]));
     } else {
       actions.push({ id: "setup-sidecar", title: install ? "Install and set up harness" : "Set up harness", status: missingDepsOnly ? "ok" : "ok", applied: true, path: setup.artifacts?.latest || "state/setup/latest.json", why: install ? "Do the useful default work now so the human does not memorize setup flags." : "Set up local state without installing dependencies because --no-install was requested." });
       warnings.push(...(setup.warnings || []));
@@ -139,6 +139,15 @@ function runNode(commandArgs, timeout) {
 
 function parseJson(text) {
   try { return text && text.trim().startsWith("{") ? JSON.parse(text) : null; } catch { return null; }
+}
+
+function commandFailure(label, result) {
+  const parts = [`${label} exited ${result.status}`];
+  if (result.signal) parts.push(`signal ${result.signal}`);
+  if (result.error?.code) parts.push(result.error.code);
+  const detail = String(result.stderr || result.stdout || result.error?.message || "").trim().slice(0, 400);
+  if (detail) parts.push(detail);
+  return parts.join(": ");
 }
 
 function readJsonIfExists(file) {

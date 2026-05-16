@@ -1,9 +1,10 @@
 import { existsSync, readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { validManualApprovalFor } from "./package-approval.mjs";
 
-const root = new URL("..", import.meta.url).pathname.replace(/\/$/, "");
+const root = fileURLToPath(new URL("..", import.meta.url)).replace(/\/$/, "");
 const specs = process.argv.slice(2).filter((arg) => !arg.startsWith("--"));
 
 if (specs.length === 0) {

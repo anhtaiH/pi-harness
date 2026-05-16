@@ -1,8 +1,9 @@
 import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const root = new URL("..", import.meta.url).pathname.replace(/\/$/, "");
+const root = fileURLToPath(new URL("..", import.meta.url)).replace(/\/$/, "");
 const args = process.argv.slice(2);
 const json = args.includes("--json");
 const verboseJson = args.includes("--verbose-json");

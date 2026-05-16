@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 import { pathFromRoot } from "./lib/harness-state.mjs";
@@ -24,6 +24,18 @@ try {
   const statusline = run(["scripts/harness-more.mjs", "statusline", "--json"]);
   const statuslineJson = JSON.parse(statusline.stdout || "{}");
 
+  const urlPathnameRegression = [
+    "scripts/lib/harness-state.mjs",
+    "scripts/status.mjs",
+    "scripts/secret-scan.mjs",
+    "scripts/doctor.mjs",
+    "scripts/finish-task.mjs",
+    "scripts/evidence-doctor.mjs",
+    "scripts/source-review.mjs",
+    "scripts/install-reviewed-package.mjs",
+    "scripts/eval-writer-lock-lifecycle.mjs",
+  ].filter((file) => readFileSync(pathFromRoot(file), "utf8").includes("import.meta.url).pathname"));
+
   const ok = start.status === 0
     && startJson.ok === true
     && startJson.mode?.projectWrites === false
@@ -38,9 +50,10 @@ try {
     && memory.status === 0
     && Array.isArray(memoryJson.recommendations)
     && statusline.status === 0
-    && statuslineJson.cards?.some((card) => card.id === "statusline");
+    && statuslineJson.cards?.some((card) => card.id === "statusline")
+    && urlPathnameRegression.length === 0;
 
-  console.log(JSON.stringify({ ok, startOk: startJson.ok, projectFiles, cards: moreJson.cards?.map((card) => card.id), localAny: localJson.detected?.any, memoryCount: memoryJson.count, statuslineCards: statuslineJson.cards?.map((card) => card.id) }, null, 2));
+  console.log(JSON.stringify({ ok, startOk: startJson.ok, projectFiles, cards: moreJson.cards?.map((card) => card.id), localAny: localJson.detected?.any, memoryCount: memoryJson.count, statuslineCards: statuslineJson.cards?.map((card) => card.id), urlPathnameRegression }, null, 2));
   process.exit(ok ? 0 : 1);
 } finally {
   rmSync(tmp, { recursive: true, force: true });

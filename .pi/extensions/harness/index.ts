@@ -1556,16 +1556,20 @@ async function pickCommandCenterAction(ctx: any): Promise<CommandCenterAction | 
   const recommendedAction = actions.find((item) => item.id === recommendation.value) || null;
   const ui = ctx?.ui;
   if (ui?.custom) {
-    return new Promise((resolve) => {
-      let handle: any;
-      const component = new CommandCenterComponent(actions, recommendedAction, ui.theme, (result) => {
-        handle?.close?.();
-        resolve(result);
-      });
-      handle = ui.custom(component, { overlay: true, overlayOptions: { width: "80%", minWidth: 60, maxHeight: "80%" } });
-    });
+    try {
+      return await ui.custom(
+        (_tui: any, theme: any, _keybindings: any, done: (result: CommandCenterAction | null) => void) =>
+          new CommandCenterComponent(actions, recommendedAction, theme || ui.theme, done),
+        { overlay: true, overlayOptions: { width: "80%", minWidth: 60, maxHeight: "80%" } },
+      );
+    } catch (error: any) {
+      ctx.ui.notify(`Custom /harness UI failed; falling back to simple menu. ${String(error?.message || error)}`, "warning");
+    }
   }
-  // Plain fallback when no custom component support.
+  return pickCommandCenterActionFallback(ctx, actions);
+}
+
+async function pickCommandCenterActionFallback(ctx: any, actions: CommandCenterAction[]): Promise<CommandCenterAction | null> {
   const labels = actions.map((item) => `${item.label} — ${item.category}`);
   const picked = await ctx.ui.select("Pi Harness — what do you need?", labels);
   const idx = labels.indexOf(picked);

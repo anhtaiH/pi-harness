@@ -41,6 +41,9 @@ try {
   const installerHasTarballFallback = readFileSync(pathFromRoot("bin/install"), "utf8").includes("install_via_tarball");
   const statuslineRedesigned = extensionText.includes("renderStatusline") && !extensionText.includes("try:/harness");
   const tuiCommandCenter = extensionText.includes("CommandCenterComponent");
+  const customUiUsesFactory = extensionText.includes("ui.custom(")
+    && extensionText.includes("(_tui: any, theme: any, _keybindings: any, done")
+    && !extensionText.includes("ui.custom(component");
 
   const urlPathnameRegression = [
     "scripts/lib/harness-state.mjs",
@@ -98,6 +101,7 @@ try {
     && installerHasTarballFallback
     && statuslineRedesigned
     && tuiCommandCenter
+    && customUiUsesFactory
     && urlPathnameRegression.length === 0;
 
   console.log(JSON.stringify({
@@ -123,6 +127,7 @@ try {
     installerHasTarballFallback,
     statuslineRedesigned,
     tuiCommandCenter,
+    customUiUsesFactory,
   }, null, 2));
   process.exit(ok ? 0 : 1);
 } finally {

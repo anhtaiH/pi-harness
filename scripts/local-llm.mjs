@@ -19,6 +19,7 @@ const result = {
   command,
   generatedAt: nowIso(),
   detected,
+  profiles: localProfiles(),
   suggestedUses: ["summaries", "codebase scouting", "docs cleanup", "test/check triage", "fresh-context review drafts"],
   notDefaultFor: ["risky implementation", "external writes", "security-sensitive changes", "large refactors without cloud/fresh review"],
   next: nextSteps(detected),
@@ -123,6 +124,26 @@ function promptText(detected) {
   ].join("\n");
 }
 
+function localProfiles() {
+  return [
+    {
+      id: "local-scout",
+      useFor: ["summarize unfamiliar files", "map likely code areas", "draft docs wording", "triage failing check logs"],
+      requireHumanBefore: ["editing code", "running external writes", "changing auth/security behavior"],
+    },
+    {
+      id: "cloud-implementation",
+      useFor: ["multi-file edits", "tool-heavy debugging", "risky refactors", "shipping work with evidence"],
+      requireHumanBefore: ["red-risk changes", "deploy/release/external writes"],
+    },
+    {
+      id: "fresh-review",
+      useFor: ["yellow/red review", "security-sensitive changes", "checking done evidence"],
+      requireHumanBefore: ["treating review as approval to skip gates"],
+    },
+  ];
+}
+
 function nextSteps(detected) {
   if (detected.any) return ["Open Pi with `ph local-llm`, then use `/harness-local-llm` and `/model`."];
   return [
@@ -137,6 +158,11 @@ function printHuman(result) {
   for (const provider of [result.detected.ollama, result.detected.lmStudio]) {
     console.log(`${provider.available ? "✓" : "-"} ${provider.title}: ${provider.available ? provider.models.length + " model(s)" : provider.error}`);
     for (const model of provider.models.slice(0, 8)) console.log("  - " + model);
+  }
+  console.log("\nProfiles:");
+  for (const profile of result.profiles) {
+    console.log(`- ${profile.id}: ${profile.useFor.join(", ")}`);
+    console.log(`  Human/stronger model before: ${profile.requireHumanBefore.join(", ")}`);
   }
   console.log("\nGood local uses: " + result.suggestedUses.join(", "));
   console.log("Keep cloud/fresh review for: " + result.notDefaultFor.join(", "));

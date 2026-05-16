@@ -63,7 +63,7 @@ case "${1:-}" in
     cd "$HARNESS_ROOT"
     exec node scripts/bootstrap.mjs "$@"
     ;;
-  next|learn|check|ready|done|checks|review-policy|proof|more|run-long|resume-long|long-run|run-long-heartbeat|run-long-checkpoint)
+  next|learn|check|ready|done|checks|review-policy|proof|more|route|smoke|first-run-smoke|update|repair|reset|uninstall|run-long|resume-long|long-run|run-long-heartbeat|run-long-checkpoint)
     COMMAND="$1"
     shift
     cd "$HARNESS_ROOT"
@@ -82,6 +82,15 @@ case "${1:-}" in
         ;;
       more)
         exec node scripts/harness-more.mjs "$@"
+        ;;
+      route)
+        exec node scripts/intent-router.mjs "$@"
+        ;;
+      smoke|first-run-smoke)
+        exec node scripts/first-run-smoke.mjs "$@"
+        ;;
+      update|repair|reset|uninstall)
+        exec node scripts/maintenance.mjs "$COMMAND" "$@"
         ;;
       run-long)
         exec node scripts/long-run.mjs plan "$@"
@@ -136,7 +145,16 @@ case "${1:-}" in
     ;;
   models|login|auth)
     shift
-    export PI_HARNESS_ASSIST=models
+    case "${1:-}" in
+      open|pi|tui)
+        shift
+        export PI_HARNESS_ASSIST=models
+        ;;
+      *)
+        cd "$HARNESS_ROOT"
+        exec node scripts/model-onboarding.mjs "$@"
+        ;;
+    esac
     ;;
   team|subagents)
     shift

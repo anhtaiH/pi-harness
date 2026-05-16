@@ -36,7 +36,8 @@ export default function harnessExtension(pi: any) {
     await maybeRegisterLocalLlmProviders(pi, ctx, process.env.PI_HARNESS_LOCAL_LLM === "1");
     refreshHarnessUi(ctx, { installFooter: true });
     const activeTask = readActiveTaskId();
-    ctx.ui.notify(`Pi harness loaded. Type /harness for tasks, models, local LLMs, team/research tools, memory, and next steps.${activeTask ? ` Active task: ${activeTask}.` : ""}`, "info");
+    const model = modelReadiness();
+    ctx.ui.notify(`Pi harness loaded. Type /harness for tasks, models, local LLMs, team/research tools, memory, and next steps.${activeTask ? ` Active task: ${activeTask}.` : ""}${model.authFilePresent ? "" : " First run? Use ph models or /harness-models for /login + /model guidance."}`, "info");
     presentAssistIfRequested(ctx);
   });
 
@@ -50,7 +51,8 @@ export default function harnessExtension(pi: any) {
 
   pi.on("before_agent_start", async (event: any) => {
     return {
-      systemPrompt: `${event.systemPrompt}\n\nHarness human-first guidance:\n- If the human asks about setup, models, login, local LLMs, subagents, research, MCP, memory, status, or shaping a vague task, do not make them remember internal state/setup paths. Use the harness slash commands (/harness, /harness-models, /harness-local-llm, /harness-team, /harness-research, /harness-memory, /harness-brief) or the harness tools directly.\n- If optional team/research packages are needed, explain the simple launcher command (ph team or ph research), not PI_HARNESS_ENABLE_PROJECT_PACKAGES.\n- Treat persistent memory as opt-in: propose candidates with source/scope/confidence/expiry and make forgetting easy.\n- Use local LLMs only for low-risk scouting, summaries, docs cleanup, and check triage unless the human explicitly accepts the risk.`,
+      systemPrompt: `${event.systemPrompt}\n\nHarness human-first guidance:\n- If the human asks about setup, models, login, local LLMs, subagents, research, MCP, memory, status, or shaping a vague task, do not make them remember internal state/setup paths. Use the harness slash commands (/harness, /harness-models, /harness-local-llm, /harness-team, /harness-research, /harness-memory, /harness-brief) or the harness tools directly.\n- If optional team/research packages are needed, explain the simple launcher command (ph team or ph research), not PI_HARNESS_ENABLE_PROJECT_PACKAGES.\n- Treat persistent memory as opt-in: propose candidates with source/scope/confidence/expiry and make forgetting easy.\n- Use local LLMs only for low-risk scouting, summaries, docs cleanup, and check triage unless the human explicitly accepts the risk.
+- Natural-language routing: if the human says "research this", suggest ph research or /harness-research; "use local model" suggests ph local-llm or /harness-local-llm; "I don't know how to scope this" suggests /harness-brief; "no model/API key" suggests ph models and /login + /model; "what is blocking done" suggests ph done or /harness-done.`,
     };
   });
 
@@ -103,6 +105,13 @@ export default function harnessExtension(pi: any) {
     description: "Detect and register Ollama/LM Studio local models",
     handler: async (_args: string, ctx: any) => {
       await maybeRegisterLocalLlmProviders(pi, ctx, true);
+    },
+  });
+
+  pi.registerCommand("harness-route", {
+    description: "Map a plain-language request to the right harness capability",
+    handler: async (args: string, ctx: any) => {
+      showIntentRouting(args, ctx);
     },
   });
 
@@ -1396,7 +1405,10 @@ function capabilityModeLabel(): string {
 }
 
 async function openHarnessCommandCenter(pi: any, ctx: any) {
+  const recommendation = recommendedHarnessAction();
   const options = [
+    { label: `Recommended: ${recommendation.label}`, value: recommendation.value },
+    { label: "Plain-language router", value: "route" },
     { label: "Shape a vague task", value: "brief" },
     { label: "Finish current task", value: "done" },
     { label: "Models, login, and /model", value: "models" },
@@ -1404,6 +1416,7 @@ async function openHarnessCommandCenter(pi: any, ctx: any) {
     { label: "Team / subagents", value: "team" },
     { label: "Research / web / MCP", value: "research" },
     { label: "Memory review / forget", value: "memory" },
+    { label: "Reset / repair / retry", value: "reset" },
     { label: "Statusline / footer", value: "statusline" },
     { label: "Show everything the harness can do", value: "more" },
   ];
@@ -1414,6 +1427,7 @@ async function openHarnessCommandCenter(pi: any, ctx: any) {
   const picked = await ctx.ui.select("Pi Harness — what do you need?", options.map((item) => item.label));
   const choice = options.find((item) => item.label === picked)?.value;
   if (!choice) return;
+  if (choice === "route") return showIntentRouting("", ctx);
   if (choice === "brief") return runBriefBuilder("", ctx);
   if (choice === "done") return runDoneFromCommand(ctx);
   if (choice === "models") return showCapabilityHelp(ctx, "models");
@@ -1421,20 +1435,36 @@ async function openHarnessCommandCenter(pi: any, ctx: any) {
   if (choice === "team") return showCapabilityHelp(ctx, "team");
   if (choice === "research") return showCapabilityHelp(ctx, "research");
   if (choice === "memory") return showMemoryReview(ctx);
+  if (choice === "reset") return showResetHelp(ctx);
   if (choice === "statusline") return configureStatusline("", ctx);
   return showHarnessMore("", ctx);
 }
 
 function commandCenterText(): string {
+  const model = modelReadiness();
+  const recommendation = recommendedHarnessAction();
   return [
-    "Pi Harness command center:",
-    "- /harness-brief: shape a vague task",
-    "- /harness-models: login/model help",
-    "- /harness-local-llm: Ollama/LM Studio",
+    "Pi Harness command center",
+    "=========================",
+    `Recommended next action: ${recommendation.label}`,
+    `Model/login: ${model.authFilePresent ? "harness auth exists (not read)" : "not set up yet"}`,
+    "",
+    "Common paths:",
+    "- /harness-brief: shape a vague task before edits",
+    "- /harness-models: login/model help and model profiles",
+    "- /harness-local-llm: Ollama/LM Studio for local scout/docs/check triage",
     "- /harness-team: subagents/team",
     "- /harness-research: web/MCP/research",
     "- /harness-memory: review/forget memory",
     "- /harness-done: finish safely",
+    "",
+    "Plain English examples:",
+    "- research this with sources",
+    "- use a local model to scout the repo",
+    "- grill me to scope this task",
+    "- what is blocking done?",
+    "",
+    "Shell helpers: ph models · ph local-llm · ph route \"what I want\" · ph reset",
   ].join("\n");
 }
 
@@ -1446,10 +1476,39 @@ function showHarnessMore(args: string, ctx: any) {
   ctx.ui.notify(text || "Run /harness for the command center.", "info");
 }
 
+function showIntentRouting(args: string, ctx: any) {
+  const text = args.trim();
+  const result = runJsonScript("intent-router.mjs", [...(text ? [text] : []), "--json"]);
+  const lines = [
+    "Say what you need in plain English. Suggested routes:",
+    ...(result.routes || []).map((route: any) => `- ${route.title}: ${route.command}\n  ${route.why}`),
+    "",
+    "Examples: research this with sources · use local model to scout · grill me to scope this · what is blocking done?",
+  ];
+  ctx.ui.notify(lines.join("\n"), "info");
+  if (!text) ctx.ui.setEditorText("I want to describe my task in plain English. Route me to the right harness mode before we start.");
+}
+
+function showResetHelp(ctx: any) {
+  ctx.ui.notify("Reset is safe by default: `ph reset` previews what would be removed; `ph reset --apply` removes only this project's local harness sidecar and registry entry, not project files. Then rerun the one-line curl installer.", "info");
+  ctx.ui.setEditorText("Explain how to reset and retry this harness setup safely. Do not remove project files.");
+}
+
+function modelReadiness() {
+  return { authFilePresent: existsSync(join(rootDir(), ".pi-agent", "auth.json")) };
+}
+
+function recommendedHarnessAction() {
+  if (!modelReadiness().authFilePresent) return { value: "models", label: "Set up models/login" };
+  const activeTask = readActiveTaskId();
+  if (!activeTask) return { value: "brief", label: "Shape a task" };
+  return { value: "done", label: "Finish or check current task" };
+}
+
 function showCapabilityHelp(ctx: any, topic: "models" | "team" | "research") {
   if (topic === "models") {
-    ctx.ui.notify("Models are set up through Pi, not by reading secret files. Run /login, choose a provider, then /model. I can help compare options without seeing credentials.", "info");
-    ctx.ui.setEditorText("Help me choose a good default model for this project. Walk me through /login and /model, and do not read or print secrets.");
+    ctx.ui.notify("Models are set up through Pi, not by reading secret files. First run `ph models` for the terminal guide. In Pi, run /login, choose a provider, then /model. Profiles: local scout for low-risk summaries; cloud implementation for edits; fresh review for yellow/red work.", "info");
+    ctx.ui.setEditorText("Help me choose a model profile for this project. Walk me through /login and /model, and do not read or print secrets.");
     return;
   }
   if (topic === "team") {

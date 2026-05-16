@@ -53,6 +53,7 @@ curl -fsSL https://raw.githubusercontent.com/anhtaiH/pi-harness/main/bin/install
 Then use:
 
 ```bash
+ph models # first-run /login + /model guide
 ph        # open Pi in this project
 ph next   # ask what to do next
 ph done   # finish with evidence and gates
@@ -64,6 +65,7 @@ What that command means:
 - It connects this project to a local sidecar with no project writes by default.
 - It runs the useful setup path instead of asking you to remember setup flags.
 - It tries to install the short `ph` command; if your shell cannot find it, the output includes a direct launcher fallback.
+- It checks whether this isolated harness has login/model state and points first-time users to `ph models` before real agent work.
 - If you want `.pi-harness/` and npm scripts in the project, use `ph start --mode repo` explicitly.
 
 Inside Pi:

@@ -15,9 +15,10 @@ curl -fsSL https://raw.githubusercontent.com/anhtaiH/pi-harness/main/bin/install
 
 That command installs/updates a local harness source copy, connects this project to a **local sidecar**, runs useful setup, and keeps project writes off by default. No Pi/harness code, installs, sessions, auth, or package cache need to be committed to your repo.
 
-After setup, use the short loop from the project:
+After setup, do model/login once, then use the short loop from the project:
 
 ```bash
+ph models # first-run /login + /model guide; no credentials are read by the harness
 ph        # open Pi in this project
 ph next   # ask what to do next
 ph done   # finish with evidence and gates
@@ -91,8 +92,10 @@ Need more? Do not memorize flags:
 
 ```bash
 ph more       # plain-language capability menu
-ph models     # open Pi with /login + /model guidance
+ph models     # terminal guide for /login + /model
+ph route "research this with sources" # natural-language routing
 ph local-llm  # Ollama / LM Studio guidance
+ph reset      # preview safe reset/retry for this project
 ph team       # open Pi with team/subagent tools available
 ph research   # open Pi with research/MCP tools available
 ph memory     # memory review from inside Pi

@@ -23,6 +23,7 @@ let adoption = null;
 let setup = null;
 let sidecarDir = "";
 let alreadyConnected = false;
+let modelStatus = null;
 
 if (findings.length === 0) {
   const existing = readJsonIfExists(pathFromRoot("harness.project.json"));
@@ -69,6 +70,17 @@ if (!dryRun && findings.length === 0) {
   }
 }
 
+if (!dryRun && findings.length === 0 && sidecarDir) {
+  modelStatus = inspectModelStatus(sidecarDir);
+  actions.push({
+    id: "model-readiness",
+    title: modelStatus.authFilePresent ? "Model login may be ready" : "Model login not found yet",
+    status: modelStatus.authFilePresent ? "ok" : "planned",
+    applied: false,
+    why: modelStatus.authFilePresent ? "A harness auth file exists; the harness did not read it. Use /model to confirm the selected model." : "Pi needs a model/provider before useful agent work. The harness does not read credentials; it guides you through Pi's /login and /model screens.",
+  });
+}
+
 const result = {
   ok: findings.length === 0,
   command: "start",
@@ -78,6 +90,7 @@ const result = {
   mode: { placement: mode, projectWrites: mode === "repo" || parseFlag(args, "--scripts", "none") !== "none", install, alias: noAlias ? "" : alias, checksProfile },
   sidecarDir,
   alreadyConnected,
+  modelStatus,
   actions,
   adoption,
   setup,
@@ -97,13 +110,22 @@ function nextSteps() {
   const short = noAlias || !alias ? launcher : alias;
   const steps = [];
   if (!install) steps.push("You ran skip-install mode. To finish the normal setup, rerun the normal one-line installer.");
-  steps.push("Open a new terminal in this project, then run `" + short + "`.");
+  if (modelStatus && !modelStatus.authFilePresent) steps.push("First-time model setup: run `" + short + " models` for the plain-language /login and /model guide, then run `" + short + "`.");
+  else steps.push("Open a new terminal in this project, then run `" + short + "`.");
   steps.push("Inside Pi, type `/harness` whenever you are unsure what is possible.");
-  steps.push("Need models? Run `" + short + " models` for login/model guidance.");
+  if (!modelStatus || modelStatus.authFilePresent) steps.push("Need models? Run `" + short + " models` for login/model guidance.");
   steps.push("Need team, research, or local models? Run `" + short + " more` to see plain-language options.");
   steps.push("When work is done, run `" + short + " done`.");
   if (short === alias) steps.push("If your terminal says `" + alias + ": command not found`, use the direct launcher: `" + launcher + "`.");
   return steps;
+}
+
+function inspectModelStatus(root) {
+  const authFile = join(root, ".pi-agent", "auth.json");
+  return {
+    authFilePresent: existsSync(authFile),
+    note: existsSync(authFile) ? "auth file exists; not read" : "no auth file found",
+  };
 }
 
 function cleanSetupWarnings(values) {

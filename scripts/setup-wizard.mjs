@@ -374,8 +374,9 @@ function nextSteps() {
   if (!apply) steps.push("Apply safe local setup: `" + commandWithArgs(setupCommand, "--apply") + "`.");
   if (apply && !noAlias) steps.push("Use `" + aliasName + "` from your project if it is available; if not, use the launcher printed above. No internal setup paths need to be memorized.");
   if (apply && !runGates) steps.push("For full confidence: `" + commandWithArgs(setupCommand, "--apply --run-gates --allow-open-tasks") + "`.");
+  if (apply) steps.push("First-time model setup: run `" + pathFromRoot("bin", "pi-harness") + " models` for the /login and /model guide before opening Pi for real work.");
   if (apply) steps.push("Start Pi with `" + harnessCommand("pi") + "`, then type `/harness` whenever you are unsure what is possible.");
-  if (apply) steps.push("Need models, local LLMs, team/research tools, memory, or task shaping? Run `" + pathFromRoot("bin", "pi-harness") + " more` or use `/harness` inside Pi.");
+  if (apply) steps.push("Need local LLMs, team/research tools, memory, or task shaping? Run `" + pathFromRoot("bin", "pi-harness") + " more` or use `/harness` inside Pi.");
   if (apply) steps.push("Optional reference artifacts were written to " + rel(cheatsheetPath) + " and " + rel(promptPath) + "; you do not need to memorize those paths.");
   steps.push("Use `" + harnessCommand("next") + "` when you are unsure what to do next.");
   return steps;
@@ -468,10 +469,12 @@ function cheatsheetText() {
     "",
     "```bash",
     pathFromRoot("bin", "pi-harness") + " more",
-    pathFromRoot("bin", "pi-harness") + " models       # opens Pi with /login + /model guidance",
+    pathFromRoot("bin", "pi-harness") + " models       # plain-language /login + /model guidance",
     pathFromRoot("bin", "pi-harness") + " local-llm    # Ollama / LM Studio guidance",
     pathFromRoot("bin", "pi-harness") + " team         # opens Pi with team tools available",
     pathFromRoot("bin", "pi-harness") + " research     # opens Pi with research/MCP tools available",
+    pathFromRoot("bin", "pi-harness") + " route \"research this with sources\"",
+    pathFromRoot("bin", "pi-harness") + " reset        # preview safe reset/retry",
     "```",
     "",
     "Inside Pi, `/harness` is the escape hatch for all of these.",

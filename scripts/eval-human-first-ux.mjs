@@ -23,6 +23,12 @@ try {
   const memoryJson = JSON.parse(memory.stdout || "{}");
   const statusline = run(["scripts/harness-more.mjs", "statusline", "--json"]);
   const statuslineJson = JSON.parse(statusline.stdout || "{}");
+  const route = run(["scripts/intent-router.mjs", "research this with sources", "--json"]);
+  const routeJson = JSON.parse(route.stdout || "{}");
+  const models = run(["scripts/model-onboarding.mjs", "--json"]);
+  const modelsJson = JSON.parse(models.stdout || "{}");
+  const smoke = run(["scripts/first-run-smoke.mjs", "--skip-install", "--json"], {}, 150_000);
+  const smokeJson = JSON.parse(smoke.stdout || "{}");
 
   const urlPathnameRegression = [
     "scripts/lib/harness-state.mjs",
@@ -52,8 +58,11 @@ try {
     && moreJson.cards?.some((card) => card.id === "models")
     && moreJson.cards?.some((card) => card.id === "local-llm")
     && moreJson.cards?.some((card) => card.id === "memory")
+    && moreJson.cards?.some((card) => card.id === "route")
+    && moreJson.cards?.some((card) => card.id === "reset")
     && local.status === 0
     && localJson.detected && typeof localJson.detected.any === "boolean"
+    && Array.isArray(localJson.profiles)
     && memory.status === 0
     && Array.isArray(memoryJson.recommendations)
     && shim.status === 0
@@ -61,9 +70,15 @@ try {
     && existsSync(join(shimDir, "ph"))
     && statusline.status === 0
     && statuslineJson.cards?.some((card) => card.id === "statusline")
+    && route.status === 0
+    && routeJson.routes?.some((item) => item.id === "research")
+    && models.status === 0
+    && modelsJson.profiles?.some((item) => item.id === "cloud-implementation")
+    && smoke.status === 0
+    && smokeJson.ok === true
     && urlPathnameRegression.length === 0;
 
-  console.log(JSON.stringify({ ok, startOk: startJson.ok, projectFiles, cards: moreJson.cards?.map((card) => card.id), localAny: localJson.detected?.any, memoryCount: memoryJson.count, shimInstalled: Boolean(shimJson.shim), confusingNextStep, statuslineCards: statuslineJson.cards?.map((card) => card.id), urlPathnameRegression }, null, 2));
+  console.log(JSON.stringify({ ok, startOk: startJson.ok, projectFiles, cards: moreJson.cards?.map((card) => card.id), localAny: localJson.detected?.any, localProfiles: localJson.profiles?.map((profile) => profile.id), memoryCount: memoryJson.count, shimInstalled: Boolean(shimJson.shim), route: routeJson.routes?.map((item) => item.id), modelProfiles: modelsJson.profiles?.map((item) => item.id), firstRunSmoke: smokeJson.ok, confusingNextStep, statuslineCards: statuslineJson.cards?.map((card) => card.id), urlPathnameRegression }, null, 2));
   process.exit(ok ? 0 : 1);
 } finally {
   rmSync(tmp, { recursive: true, force: true });

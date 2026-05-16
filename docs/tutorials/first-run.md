@@ -14,11 +14,14 @@ curl -fsSL https://raw.githubusercontent.com/anhtaiH/pi-harness/main/bin/install
 
 This installs or updates a local harness source copy, connects your project to a local sidecar, runs setup, and keeps project writes off by default.
 
-## 2. Start Pi
+## 2. Set up a model, then start Pi
 
 ```bash
+ph models
 ph
 ```
+
+`ph models` is a plain-language guide for Pi's `/login` and `/model` flow. The harness never reads or prints provider credentials.
 
 If your terminal cannot find `ph`, use the direct launcher printed under `Next:` by the installer.
 
@@ -57,6 +60,14 @@ For local exploration, you can run:
 ```
 
 Do not use that as a release shortcut. Finish or close real tasks before claiming the harness is ready.
+
+## If you want to reset and try again
+
+```bash
+ph reset          # preview only
+ph reset --apply  # remove this project's local harness sidecar, not project files
+curl -fsSL https://raw.githubusercontent.com/anhtaiH/pi-harness/main/bin/install | bash
+```
 
 ## If you want repo-contained adoption instead
 

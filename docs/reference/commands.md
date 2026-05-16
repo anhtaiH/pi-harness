@@ -9,6 +9,7 @@ Beginner path, local-only default, no project writes:
 ```bash
 cd your-project
 curl -fsSL https://raw.githubusercontent.com/anhtaiH/pi-harness/main/bin/install | bash
+ph models
 ph
 ```
 
@@ -54,6 +55,10 @@ Local mode:
 /path/to/local/pi-harness/.../bin/pi-harness proof --task <taskId>
 /path/to/local/pi-harness/.../bin/pi-harness more
 /path/to/local/pi-harness/.../bin/pi-harness models
+/path/to/local/pi-harness/.../bin/pi-harness models open
+/path/to/local/pi-harness/.../bin/pi-harness route "research this with sources"
+/path/to/local/pi-harness/.../bin/pi-harness reset
+/path/to/local/pi-harness/.../bin/pi-harness smoke --skip-install
 /path/to/local/pi-harness/.../bin/pi-harness local-llm detect --json
 /path/to/local/pi-harness/.../bin/pi-harness team
 /path/to/local/pi-harness/.../bin/pi-harness research
@@ -100,6 +105,9 @@ node scripts/project-checks.mjs run --profile quick --json
 node scripts/done-task.mjs --task <taskId> --json
 node scripts/proof-ledger.mjs doctor --task <taskId> --json
 node scripts/harness-more.mjs --json
+node scripts/model-onboarding.mjs --json
+node scripts/intent-router.mjs "research this" --json
+node scripts/first-run-smoke.mjs --skip-install --json
 node scripts/local-llm.mjs detect --json
 node scripts/memory.mjs review --json
 node scripts/memory.mjs forget <id> --reason "stale" --json
@@ -122,7 +130,10 @@ npm run pi:print -- "Use harness_status and summarize state."
 Optional reviewed/vendored package batteries are explained just in time:
 
 ```bash
-ph models      # /login + /model guidance
+ph models      # terminal /login + /model guide
+ph models open # open Pi for /login and /model
+ph route "research this with sources"
+ph reset       # preview safe reset/retry
 ph local-llm   # Ollama / LM Studio detection and guidance
 ph team        # opens Pi with team/subagent packages available
 ph research    # opens Pi with research/MCP packages available

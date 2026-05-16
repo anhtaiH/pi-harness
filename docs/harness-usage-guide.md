@@ -9,11 +9,12 @@ Beginner local setup:
 ```bash
 cd your-project
 curl -fsSL https://raw.githubusercontent.com/anhtaiH/pi-harness/main/bin/install | bash
+ph models
 ph next
 ph
 ```
 
-If `ph` is not available in your shell, use the direct launcher printed by the installer under `Next:`.
+`ph models` explains /login, /model, local scout, cloud implementation, and fresh-review profiles without reading credentials. If `ph` is not available in your shell, use the direct launcher printed by the installer under `Next:`.
 
 Harness source checkout or repo mode:
 

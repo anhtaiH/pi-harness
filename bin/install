@@ -40,8 +40,15 @@ mkdir -p "$(dirname "$SOURCE_DIR")"
 
 if [[ -d "$SOURCE_DIR/.git" ]]; then
   echo "Updating Pi Harness at $SOURCE_DIR"
-  git -C "$SOURCE_DIR" fetch --depth 1 origin "$BRANCH"
-  if ! git -C "$SOURCE_DIR" merge --ff-only -q FETCH_HEAD; then
+  if [[ "$(git -C "$SOURCE_DIR" rev-parse --is-shallow-repository 2>/dev/null || echo false)" == "true" ]]; then
+    git -C "$SOURCE_DIR" fetch --unshallow origin "$BRANCH" || git -C "$SOURCE_DIR" fetch --deepen 100 origin "$BRANCH"
+  else
+    git -C "$SOURCE_DIR" fetch origin "$BRANCH"
+  fi
+  git -C "$SOURCE_DIR" checkout -q "$BRANCH" 2>/dev/null || git -C "$SOURCE_DIR" checkout -q -B "$BRANCH"
+  if git -C "$SOURCE_DIR" merge-base --is-ancestor HEAD FETCH_HEAD; then
+    git -C "$SOURCE_DIR" merge --ff-only -q FETCH_HEAD
+  else
     echo "Could not fast-forward the existing harness source at $SOURCE_DIR." >&2
     echo "Move that directory aside, commit/stash local edits, or set PI_HARNESS_SOURCE_DIR to a fresh location." >&2
     exit 1

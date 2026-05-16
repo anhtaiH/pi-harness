@@ -2,51 +2,35 @@
 
 This tutorial gets the harness running for an existing project without putting harness files in the project repo.
 
-You do not need to understand every concept first. Adopt the local sidecar, run setup, start Pi, and then come back to reference docs when the workflow starts to make sense.
+You do not need to understand every concept first. Run one command from your project, then use `ph` and `/harness`.
 
-## 1. Plan adoption
+## 1. Install and connect
 
 From your project root:
 
 ```bash
-npx --yes --package github:anhtaiH/pi-harness pi-harness-adopt
+curl -fsSL https://raw.githubusercontent.com/anhtaiH/pi-harness/main/bin/install | bash
 ```
 
-The first run is plan-only. By default it tells you where the harness would be copied outside the project checkout and confirms that no project files would be written.
+This installs or updates a local harness source copy, connects your project to a local sidecar, runs setup, and keeps project writes off by default.
 
-## 2. Apply adoption
+## 2. Start Pi
 
 ```bash
-npx --yes --package github:anhtaiH/pi-harness pi-harness-adopt -- --apply
+ph
 ```
 
-This copies the harness to a local sidecar outside the project checkout and prints exact launcher commands. It should not write project files in default local mode.
-
-## 3. Set up the sidecar
-
-Run the setup command printed by adoption. It looks like:
-
-```bash
-/path/to/local/pi-harness/.../bin/pi-harness setup --apply --install
-```
-
-Setup installs the sidecar lockfile when asked, preferring pnpm via Corepack and falling back to npm if needed. It bootstraps local state, checks harness health, and shows optional model/team/research batteries.
-
-## 4. Start Pi
-
-```bash
-/path/to/local/pi-harness/.../bin/pi-harness
-```
+If your terminal cannot find `ph`, use the direct launcher printed under `Next:` by the installer.
 
 Inside Pi, run:
 
 ```text
-/harness-status
+/harness
 ```
 
-You should see the local harness status.
+You should see the local command center.
 
-## 5. Create a tiny first task
+## 3. Create a tiny first task
 
 ```text
 /harness-new inspect-readme
@@ -76,11 +60,10 @@ Do not use that as a release shortcut. Finish or close real tasks before claimin
 
 ## If you want repo-contained adoption instead
 
-Use repo mode:
+Use repo mode explicitly:
 
 ```bash
-npx --yes --package github:anhtaiH/pi-harness pi-harness-adopt -- --mode repo --apply
-npm run harness:setup -- --apply --install
+ph start --mode repo
 npm run pi
 ```
 

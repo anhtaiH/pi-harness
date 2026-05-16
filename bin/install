@@ -5,8 +5,7 @@ set -euo pipefail
 #   curl -fsSL https://raw.githubusercontent.com/anhtaiH/pi-harness/main/bin/install | bash
 #
 # It keeps the harness outside the current project by default, then runs the
-# friendly start flow. Advanced users can pass args through bash:
-#   curl -fsSL .../bin/install | bash -s -- --no-install
+# friendly start flow. Advanced users can still pass pi-harness start args through bash.
 
 REPO_URL="${PI_HARNESS_REPO_URL:-https://github.com/anhtaiH/pi-harness.git}"
 BRANCH="${PI_HARNESS_BRANCH:-main}"
@@ -14,13 +13,13 @@ CALLER_CWD="$PWD"
 
 if ! command -v git >/dev/null 2>&1; then
   echo "Pi Harness needs git for the one-line installer." >&2
-  echo "Install git, then rerun this command." >&2
+  echo "Install Git from https://git-scm.com/downloads, then run the same command again." >&2
   exit 1
 fi
 
 if ! command -v node >/dev/null 2>&1; then
   echo "Pi Harness needs Node.js 20+ for setup." >&2
-  echo "Install Node.js, then rerun this command." >&2
+  echo "Install Node.js LTS from https://nodejs.org/, then run the same command again." >&2
   exit 1
 fi
 
@@ -63,6 +62,10 @@ elif [[ -e "$SOURCE_DIR" ]]; then
 else
   echo "Installing Pi Harness into $SOURCE_DIR"
   git clone --depth 1 --branch "$BRANCH" "$REPO_URL" "$SOURCE_DIR"
+fi
+
+if [[ "${PI_HARNESS_INSTALL_PH:-1}" != "0" ]]; then
+  node "$SOURCE_DIR/scripts/install-ph-shim.mjs" --human || true
 fi
 
 cd "$CALLER_CWD"

@@ -62,9 +62,9 @@ if (!dryRun && findings.length === 0) {
     if ((result.status !== 0 || setup?.ok === false || !setup) && !missingDepsOnly) {
       findings.push(...(setup?.findings || [commandFailure("setup", result)]));
     } else {
-      actions.push({ id: "setup-sidecar", title: install ? "Install and set up harness" : "Set up harness", status: missingDepsOnly ? "ok" : "ok", applied: true, path: setup.artifacts?.latest || "state/setup/latest.json", why: install ? "Do the useful default work now so the human does not memorize setup flags." : "Set up local state without installing dependencies because --no-install was requested." });
-      warnings.push(...(setup.warnings || []));
-      if (missingDepsOnly) warnings.push("Dependencies were not installed because --no-install was requested; run setup --install before launching Pi.");
+      actions.push({ id: "setup-sidecar", title: install ? "Install and set up harness" : "Set up harness", status: missingDepsOnly ? "ok" : "ok", applied: true, path: setup.artifacts?.latest || "state/setup/latest.json", why: install ? "Do the useful default work now so the human does not memorize setup flags." : "Set up local state without installing dependencies because skip-install mode was requested." });
+      warnings.push(...cleanSetupWarnings(setup.warnings || []));
+      if (missingDepsOnly) warnings.push("This was a skip-install test. To finish setup, rerun the normal one-line installer.");
     }
   }
 }
@@ -96,13 +96,19 @@ function nextSteps() {
   const launcher = shellQuote(join(sidecarDir, "bin", "pi-harness"));
   const short = noAlias || !alias ? launcher : alias;
   const steps = [];
-  if (!noAlias && setup?.artifacts?.alias) steps.push("Optional short command for this shell: `source " + setup.artifacts.alias + "`.");
-  steps.push("Open Pi: `" + short + "`.");
+  if (!install) steps.push("You ran skip-install mode. To finish the normal setup, rerun the normal one-line installer.");
+  steps.push("Open a new terminal in this project, then run `" + short + "`.");
   steps.push("Inside Pi, type `/harness` whenever you are unsure what is possible.");
-  steps.push("Need models? `" + short + " models` opens Pi with just-in-time login/model help.");
-  steps.push("Need team/research/local models? Try `" + short + " more` to see plain-language options.");
-  steps.push("Finish work safely: `" + short + " done`.");
+  steps.push("Need models? Run `" + short + " models` for login/model guidance.");
+  steps.push("Need team, research, or local models? Run `" + short + " more` to see plain-language options.");
+  steps.push("When work is done, run `" + short + " done`.");
+  if (short === alias) steps.push("If your terminal says `" + alias + ": command not found`, use the direct launcher: `" + launcher + "`.");
   return steps;
+}
+
+function cleanSetupWarnings(values) {
+  if (install) return values;
+  return values.filter((warning) => !String(warning).includes("--install"));
 }
 
 function printHuman(result) {

@@ -251,7 +251,7 @@ function aliasGuidance() {
   const launcher = pathFromRoot("bin", "pi-harness");
   const snippet = [
     "# Pi harness day-to-day alias",
-    "# Source this file from your shell rc if you want the short command.",
+    "# Reference only: the curl installer tries to install `ph` for you.",
     `alias ${aliasName}=${shellQuote(launcher)}`,
     "",
   ].join("\n");
@@ -267,8 +267,8 @@ function aliasGuidance() {
     applied: apply,
     alias: aliasName,
     path: apply ? rel(aliasPath) : "state/setup/<alias>-alias.sh",
-    command: `source ${apply ? rel(aliasPath) : "state/setup/<alias>-alias.sh"}`,
-    why: "Local and repo mode should feel like one API: ph next, ph setup, ph, ph done.",
+    command: `${aliasName} next`,
+    why: "Local and repo mode should feel like one API: ph next, ph setup, ph, ph done. The curl installer creates a ph command when possible; this file is only a fallback reference.",
   });
 }
 
@@ -372,7 +372,7 @@ function nextSteps() {
   const steps = [];
   const setupCommand = harnessCommand("setup");
   if (!apply) steps.push("Apply safe local setup: `" + commandWithArgs(setupCommand, "--apply") + "`.");
-  if (apply && !noAlias) steps.push("Optional short command: `source " + rel(aliasPath) + "`, then use `" + aliasName + " next`, `" + aliasName + "`, and `" + aliasName + " done`.");
+  if (apply && !noAlias) steps.push("Use `" + aliasName + "` from your project if it is available; if not, use the launcher printed above. No internal setup paths need to be memorized.");
   if (apply && !runGates) steps.push("For full confidence: `" + commandWithArgs(setupCommand, "--apply --run-gates --allow-open-tasks") + "`.");
   if (apply) steps.push("Start Pi with `" + harnessCommand("pi") + "`, then type `/harness` whenever you are unsure what is possible.");
   if (apply) steps.push("Need models, local LLMs, team/research tools, memory, or task shaping? Run `" + pathFromRoot("bin", "pi-harness") + " more` or use `/harness` inside Pi.");
@@ -429,15 +429,11 @@ function cheatsheetText() {
     longRun: pathFromRoot("bin", "pi-harness") + " run-long",
   };
   const shortPrefix = noAlias ? "" : [
-    "## Optional Short Alias",
+    "## Short Command",
     "",
-    `Source the generated snippet when you want the short command:`,
+    "The curl installer tries to install the short `" + aliasName + "` command for you. From your project, use `" + aliasName + "`, `" + aliasName + " next`, `" + aliasName + " done`, and `" + aliasName + " checks run`.",
     "",
-    "```bash",
-    `source ${rel(aliasPath)}`,
-    "```",
-    "",
-    "Then use `" + aliasName + " next`, `" + aliasName + "`, `" + aliasName + " done`, and `" + aliasName + " checks run`.",
+    "If `" + aliasName + "` is not found, use the direct launcher commands shown below. You do not need to memorize any `state/setup` paths.",
     "",
   ].join("\n");
   return [

@@ -1,6 +1,6 @@
 # Start Here
 
-This page is reference now. The preferred first-run path is the root `README.md`: adopt into your existing project, then run the local launcher printed by adoption. Repo mode still supports `npm run harness:setup` and `npm run pi`.
+This page is reference now. The preferred first-run path is the root `README.md`: run the one-line installer from your existing project, then use `ph`. Repo mode still supports `npm run harness:setup` and `npm run pi` for teams that intentionally version harness entry points.
 
 You may have used Claude Code, Codex, Cursor, or another AI coding tool. You ask for a change. The model reads files, edits code, maybe runs tests, and gives you a summary.
 
@@ -47,25 +47,30 @@ If the vocabulary is slowing you down, pause here and read [Core Concepts](expla
 From your existing project repo:
 
 ```bash
-npx --yes --package github:anhtaiH/pi-harness pi-harness-adopt
-npx --yes --package github:anhtaiH/pi-harness pi-harness-adopt -- --apply
-# then run the exact local launcher commands printed under Next
-/path/to/local/pi-harness/.../bin/pi-harness setup --apply --install
-/path/to/local/pi-harness/.../bin/pi-harness
+curl -fsSL https://raw.githubusercontent.com/anhtaiH/pi-harness/main/bin/install | bash
 ```
 
-What those commands mean:
+Then use:
 
-- `pi-harness-adopt` plans/applies a local sidecar outside your project by default, with no project writes.
-- `.../bin/pi-harness setup --apply --install` installs the harness lockfile, bootstraps local state, shows model/team/research batteries, runs checks, and writes Pi handoff prompts.
-- `.../bin/pi-harness` starts Pi in your project with this harness loaded.
-- If you want `.pi-harness/` and npm scripts in the project, use `pi-harness-adopt --mode repo --apply`.
+```bash
+ph        # open Pi in this project
+ph next   # ask what to do next
+ph done   # finish with evidence and gates
+```
+
+What that command means:
+
+- It installs or updates a local harness source copy outside your project.
+- It connects this project to a local sidecar with no project writes by default.
+- It runs the useful setup path instead of asking you to remember setup flags.
+- It tries to install the short `ph` command; if your shell cannot find it, the output includes a direct launcher fallback.
+- If you want `.pi-harness/` and npm scripts in the project, use `ph start --mode repo` explicitly.
 
 Inside Pi:
 
 ```text
-/harness-status
-/harness-new fix-flaky-checkout-test
+/harness
+/harness-brief
 ```
 
 Then ask the agent to use the harness skill:

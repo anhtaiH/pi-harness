@@ -23,6 +23,8 @@ ph next   # ask what to do next
 ph done   # finish with evidence and gates
 ```
 
+If your terminal cannot find `ph`, the installer prints a direct launcher fallback under `Next:`. No `source state/setup/...` step is required.
+
 Inside Pi, the front door is:
 
 ```text

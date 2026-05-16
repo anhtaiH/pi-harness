@@ -36,9 +36,16 @@ try {
     "scripts/eval-writer-lock-lifecycle.mjs",
   ].filter((file) => readFileSync(pathFromRoot(file), "utf8").includes("import.meta.url).pathname"));
 
+  const serializedStart = JSON.stringify(startJson);
+  const confusingNextStep = serializedStart.includes("source state/setup") || serializedStart.includes("Source the generated snippet");
+  const shimDir = join(tmp, "shim-bin");
+  const shim = run(["scripts/install-ph-shim.mjs"], { PI_HARNESS_BIN_DIR: shimDir });
+  const shimJson = JSON.parse(shim.stdout || "{}");
+
   const ok = start.status === 0
     && startJson.ok === true
     && startJson.mode?.projectWrites === false
+    && confusingNextStep === false
     && existsSync(join(startJson.sidecarDir || "", "bin", "pi-harness"))
     && projectFiles.join(",") === "package.json"
     && more.status === 0
@@ -49,11 +56,14 @@ try {
     && localJson.detected && typeof localJson.detected.any === "boolean"
     && memory.status === 0
     && Array.isArray(memoryJson.recommendations)
+    && shim.status === 0
+    && shimJson.ok === true
+    && existsSync(join(shimDir, "ph"))
     && statusline.status === 0
     && statuslineJson.cards?.some((card) => card.id === "statusline")
     && urlPathnameRegression.length === 0;
 
-  console.log(JSON.stringify({ ok, startOk: startJson.ok, projectFiles, cards: moreJson.cards?.map((card) => card.id), localAny: localJson.detected?.any, memoryCount: memoryJson.count, statuslineCards: statuslineJson.cards?.map((card) => card.id), urlPathnameRegression }, null, 2));
+  console.log(JSON.stringify({ ok, startOk: startJson.ok, projectFiles, cards: moreJson.cards?.map((card) => card.id), localAny: localJson.detected?.any, memoryCount: memoryJson.count, shimInstalled: Boolean(shimJson.shim), confusingNextStep, statuslineCards: statuslineJson.cards?.map((card) => card.id), urlPathnameRegression }, null, 2));
   process.exit(ok ? 0 : 1);
 } finally {
   rmSync(tmp, { recursive: true, force: true });

@@ -4,15 +4,16 @@ This lab is a local, portable harness prototype built around Pi. Use it when you
 
 ## 1. Start Here
 
-Local adoption:
+Beginner local setup:
 
 ```bash
 cd your-project
-npx --yes --package github:anhtaiH/pi-harness pi-harness-adopt -- --apply
-/path/to/local/pi-harness/.../bin/pi-harness setup --apply --install
-/path/to/local/pi-harness/.../bin/pi-harness next
-/path/to/local/pi-harness/.../bin/pi-harness
+curl -fsSL https://raw.githubusercontent.com/anhtaiH/pi-harness/main/bin/install | bash
+ph next
+ph
 ```
+
+If `ph` is not available in your shell, use the direct launcher printed by the installer under `Next:`.
 
 Harness source checkout or repo mode:
 

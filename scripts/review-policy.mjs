@@ -91,12 +91,12 @@ if (command === "suggest") {
       : `Risk is ${task.risk}; no independent review required, but you may run one for confidence.`;
   const commands = state.lanes > 0
     ? [
-        `ph review:lane record-finding --lane ${state.laneIds[0]}`,
-        `ph review:lane run --lane ${state.laneIds[0]} --live`,
+        `ph review-lane finding --task ${id} --lane-id ${state.laneIds[0]} --severity info --title "No blockers" --detail "Fresh review found no blockers." --recommendation "Proceed with finish gates."`,
+        `ph review-lane run --task ${id} --lane fresh-context --scope "diff, evidence, and checks" --prompt "Review this task for correctness, missing checks, and safety gaps." --dry-run`,
       ]
     : [
         `ph review-policy plan --task ${id} --apply`,
-        `ph review:lane record-finding --lane <lane-id> --severity info --title "No blockers"`,
+        `ph review-lane finding --task ${id} --lane-id <lane-id> --severity info --title "No blockers" --detail "Fresh review found no blockers." --recommendation "Proceed with finish gates."`,
       ];
   output({ ok: true, command, taskId: id, task: { id: task.id, risk: task.risk }, requirement, state, suggestion, commands, findings: [], warnings: [] }, "review policy");
 }

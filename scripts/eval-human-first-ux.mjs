@@ -44,6 +44,11 @@ try {
   const customUiUsesFactory = extensionText.includes("ui.custom(")
     && extensionText.includes("(_tui: any, theme: any, _keybindings: any, done")
     && !extensionText.includes("ui.custom(component");
+  const noBrokenReviewLaneCommand = !readFileSync(pathFromRoot("scripts/review-policy.mjs"), "utf8").includes("ph review:lane")
+    && readFileSync(pathFromRoot("bin/pi-harness"), "utf8").includes("review-lane)");
+  const doneBlockersText = readFileSync(pathFromRoot("scripts/done-blockers.mjs"), "utf8");
+  const blockersSeparateRecommendations = doneBlockersText.includes("const recommendations = []")
+    && doneBlockersText.includes("Recommended before done:");
 
   const urlPathnameRegression = [
     "scripts/lib/harness-state.mjs",
@@ -102,6 +107,8 @@ try {
     && statuslineRedesigned
     && tuiCommandCenter
     && customUiUsesFactory
+    && noBrokenReviewLaneCommand
+    && blockersSeparateRecommendations
     && urlPathnameRegression.length === 0;
 
   console.log(JSON.stringify({
@@ -128,6 +135,8 @@ try {
     statuslineRedesigned,
     tuiCommandCenter,
     customUiUsesFactory,
+    noBrokenReviewLaneCommand,
+    blockersSeparateRecommendations,
   }, null, 2));
   process.exit(ok ? 0 : 1);
 } finally {

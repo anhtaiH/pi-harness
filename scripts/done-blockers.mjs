@@ -13,6 +13,7 @@ const task = readJson(pathFromRoot("state", "tasks", taskId, "task.json"), null)
 if (!task) finish({ ok: false, taskId, lines: ["Unknown task: " + taskId], blockers: [{ id: "unknown-task", title: "Unknown task", detail: "No task.json found.", fix: "ph next" }], findings: ["unknown task"] });
 
 const blockers = [];
+const recommendations = [];
 
 const taskDoctor = runJson(["scripts/task-doctor.mjs", taskId, "--json"]);
 addBlocker(taskDoctor, {
@@ -57,11 +58,19 @@ addBlocker(externalWrite, {
 });
 
 const ok = blockers.length === 0;
-const lines = ok
-  ? [`No blockers for ${taskId}. Run \`ph done --task ${taskId}\` to finish.`]
-  : [`Blocking \`ph done\` for ${taskId}:`, ...blockers.map((blocker, idx) => `  ${idx + 1}. ${blocker.title}\n     fix: ${blocker.fix}`)];
+const lines = [];
+if (blockers.length) {
+  lines.push(`Blocking \`ph done\` for ${taskId}:`);
+  lines.push(...blockers.map((blocker, idx) => `  ${idx + 1}. ${blocker.title}\n     fix: ${blocker.fix}`));
+} else {
+  lines.push(`No hard blockers for ${taskId}. Run \`ph done --task ${taskId}\` to finish.`);
+}
+if (recommendations.length) {
+  lines.push("", "Recommended before done:");
+  lines.push(...recommendations.map((item, idx) => `  ${idx + 1}. ${item.title}\n     suggestion: ${item.fix}`));
+}
 
-finish({ ok, taskId, risk: task.risk, blockers, lines, findings: [] });
+finish({ ok, taskId, risk: task.risk, blockers, recommendations, lines, findings: [] });
 
 function addBlocker(result, info) {
   if (!result.parsed || result.parsed.ok === false) {
@@ -71,7 +80,7 @@ function addBlocker(result, info) {
       raw: result.parsed?.findings || (result.stderr || result.stdout || "").trim().slice(0, 400),
     });
   } else if (Array.isArray(result.parsed.warnings) && result.parsed.warnings.length) {
-    blockers.push({
+    recommendations.push({
       ...info,
       severity: "warning",
       detail: result.parsed.warnings.join("; "),
